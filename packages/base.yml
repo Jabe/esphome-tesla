@@ -4,7 +4,7 @@ substitutions:
   variant: "ESP32"
   flash_size: "4MB"
   BLE_library: "https://github.com/PedroKTFC/tesla-ble.git"
-  tesla_ble_component: "github://PedroKTFC/esphome-tesla-ble"
+  tesla_ble_component: "github://Jabe/esphome-tesla-ble"
 
 esphome:
   project:
@@ -25,7 +25,10 @@ esp32:
 
 external_components:
   - source: $tesla_ble_component
-    components: [tesla_ble_vehicle, tesla_ble_listener]
+    components:
+      - tesla_ble_vehicle
+      - tesla_ble_listener
+      - tesla_fleet_api_server
 
 logger:
   level: INFO

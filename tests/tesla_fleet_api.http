@@ -1,0 +1,161 @@
+# Tesla Fleet API test collection
+#
+# Usage tips:
+# - Update @host to point to your ESPHome device (IP or mDNS hostname).
+# - Update @vin with your vehicle VIN (uppercase).
+# - Execute individual requests with the VS Code REST Client extension (or any tool that
+#   understands the .http file format).
+
+@protocol = http
+@host = 192.168.4.1
+@port = 80
+@baseUrl = {{protocol}}://{{host}}:{{port}}
+@vin = 5YJ3E1EA7KF00000D
+
+### 🔍 Check proxy version
+GET {{baseUrl}}/api/proxy/1/version
+Accept: application/json
+
+### 🚗 List vehicles
+GET {{baseUrl}}/api/1/vehicles
+Accept: application/json
+
+### 🚗 Vehicle detail
+GET {{baseUrl}}/api/1/vehicles/{{vin}}
+Accept: application/json
+
+### 📊 Vehicle state (locked, odometer, etc.)
+GET {{baseUrl}}/api/1/vehicles/{{vin}}/vehicle_state
+Accept: application/json
+
+### 🔌 Charge state overview
+GET {{baseUrl}}/api/1/vehicles/{{vin}}/charge_state
+Accept: application/json
+
+### 🌡️ Climate snapshot
+GET {{baseUrl}}/api/1/vehicles/{{vin}}/vehicle_data?endpoints=vehicle_state,charge_state,climate_state
+Accept: application/json
+
+### 🚪 Body controller state
+GET {{baseUrl}}/api/1/vehicles/{{vin}}/body_controller_state
+Accept: application/json
+
+### ⚡ Start charging
+POST {{baseUrl}}/api/1/vehicles/{{vin}}/command/charge_start
+Accept: application/json
+Content-Type: application/json
+
+{}
+
+### 🛑 Stop charging
+POST {{baseUrl}}/api/1/vehicles/{{vin}}/command/charge_stop
+Accept: application/json
+Content-Type: application/json
+
+{}
+
+### 🔧 Set charging amps
+POST {{baseUrl}}/api/1/vehicles/{{vin}}/command/set_charging_amps
+Accept: application/json
+Content-Type: application/json
+
+{
+  "charging_amps": 16
+}
+
+### 🎯 Set charge limit
+POST {{baseUrl}}/api/1/vehicles/{{vin}}/command/set_charge_limit
+Accept: application/json
+Content-Type: application/json
+
+{
+  "percent": 80
+}
+
+### ❄️ Start climate control
+POST {{baseUrl}}/api/1/vehicles/{{vin}}/command/auto_conditioning_start
+Accept: application/json
+Content-Type: application/json
+
+{}
+
+### 🔥 Stop climate control
+POST {{baseUrl}}/api/1/vehicles/{{vin}}/command/auto_conditioning_stop
+Accept: application/json
+Content-Type: application/json
+
+{}
+
+### 🛡️ Toggle sentry mode on
+POST {{baseUrl}}/api/1/vehicles/{{vin}}/command/set_sentry_mode
+Accept: application/json
+Content-Type: application/json
+
+{
+  "on": true
+}
+
+### 🛡️ Toggle sentry mode off
+POST {{baseUrl}}/api/1/vehicles/{{vin}}/command/set_sentry_mode
+Accept: application/json
+Content-Type: application/json
+
+{
+  "on": false
+}
+
+### 🔔 Flash lights
+POST {{baseUrl}}/api/1/vehicles/{{vin}}/command/flash_lights
+Accept: application/json
+Content-Type: application/json
+
+{}
+
+### 📣 Honk horn
+POST {{baseUrl}}/api/1/vehicles/{{vin}}/command/honk_horn
+Accept: application/json
+Content-Type: application/json
+
+{}
+
+### 🔒 Lock doors
+POST {{baseUrl}}/api/1/vehicles/{{vin}}/command/door_lock
+Accept: application/json
+Content-Type: application/json
+
+{}
+
+### 🔓 Unlock doors
+POST {{baseUrl}}/api/1/vehicles/{{vin}}/command/door_unlock
+Accept: application/json
+Content-Type: application/json
+
+{}
+
+### 🔌 Open charge port
+POST {{baseUrl}}/api/1/vehicles/{{vin}}/command/charge_port_door_open
+Accept: application/json
+Content-Type: application/json
+
+{}
+
+### 🔌 Close charge port
+POST {{baseUrl}}/api/1/vehicles/{{vin}}/command/charge_port_door_close
+Accept: application/json
+Content-Type: application/json
+
+{}
+
+### 💤 Wake vehicle (wake_up alias)
+POST {{baseUrl}}/api/1/vehicles/{{vin}}/command/wake_up
+Accept: application/json
+Content-Type: application/json
+
+{}
+
+### 💤 Wake vehicle (legacy path)
+POST {{baseUrl}}/api/1/vehicles/{{vin}}/wake_up
+Accept: application/json
+Content-Type: application/json
+
+{}

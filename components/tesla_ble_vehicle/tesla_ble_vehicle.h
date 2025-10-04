@@ -5,6 +5,7 @@
 #include <iterator>
 #include <vector>
 #include <queue>
+#include <string>
 
 #include <esp_gattc_api.h>
 #include <esphome/components/binary_sensor/binary_sensor.h>
@@ -14,10 +15,12 @@
 #include <esphome/components/esp32_ble_tracker/esp32_ble_tracker.h>
 #include <esphome/components/sensor/sensor.h>
 #include <esphome/core/component.h>
+#include <esphome/core/optional.h>
 #include <esphome/core/log.h>
 
 #include <universal_message.pb.h>
 #include <vcsec.pb.h>
+#include <car_server.pb.h>
 #include <errors.h>
 
 //#include "custom_binary_sensor.h"
@@ -496,6 +499,26 @@ namespace esphome
             {
                 outsideTempStateSensor = static_cast<sensor::Sensor *>(s);
             }
+
+            esphome::optional<float> get_battery_level() const;
+            esphome::optional<float> get_charge_energy_added() const;
+            esphome::optional<float> get_charge_current() const;
+            esphome::optional<float> get_charge_voltage() const;
+            esphome::optional<float> get_charge_power() const;
+            esphome::optional<float> get_charge_limit_soc() const;
+            esphome::optional<float> get_charge_current_request_max() const;
+            esphome::optional<float> get_minutes_to_full_charge() const;
+            esphome::optional<float> get_battery_range() const;
+            esphome::optional<float> get_odometer() const;
+            esphome::optional<float> get_inside_temperature() const;
+            esphome::optional<float> get_outside_temperature() const;
+            esphome::optional<float> get_charge_distance_added() const;
+            esphome::optional<std::string> get_charging_state_text() const;
+            esphome::optional<bool> get_is_climate_on() const;
+            esphome::optional<bool> get_is_asleep() const;
+            esphome::optional<bool> get_is_user_present() const;
+            esphome::optional<bool> get_is_unlocked() const;
+            esphome::optional<bool> get_is_charge_port_open() const;
 
             std::string lookup_shift_state (int shift_state)
             {

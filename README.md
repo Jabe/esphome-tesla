@@ -116,6 +116,28 @@ There are several key parameters that determine the polling activity as follows:
 
 Note that if the other parameters are not multiples of `update_interval`, the timings will be longer than expected. For example, if `update_interval` is set to 30s and `poll_data_period` is set to 75s, then the effective `poll_data_period` will be 90s.
 
+### Fleet API emulation
+
+The ESP32 now mirrors a minimal subset of Tesla's Fleet API so external controllers (for example [evcc](https://github.com/evcc-io/evcc)) can retrieve charge data without going through the official cloud endpoints.
+
+1. Ensure your VIN (`tesla_vin`) is set in `secrets.yaml`. The proxy derives a stable numeric identifier from the VIN automatically.
+
+2. The HTTP server listens on port `80`.
+
+3. Point your client to `http://<esp-ip>` and use the following endpoints:
+
+    - `GET /api/1/vehicles` – returns a single vehicle summary.
+    - `GET /api/1/vehicles/{id}` – returns vehicle metadata.
+    - `GET /api/1/vehicles/{id}/vehicle_state` – exposes `locked`, `odometer` and a timestamp.
+    - `GET /api/1/vehicles/{id}/charge_state` – exposes the essential charge metrics required by evcc (`charging_state`, SOC, amps, volts, power, minutes to full, range, etc.).
+    - `GET /api/1/vehicles/{id}/vehicle_data` – bundles `vehicle_state`, `charge_state` and a lightweight `climate_state` object.
+    - `POST /api/1/vehicles/{id}/command/charge_start` and `/charge_stop` – start or stop AC charging.
+    - `POST /api/1/vehicles/{id}/command/set_charging_amps` – expects a JSON body such as `{ "charging_amps": 16 }`.
+    - `POST /api/1/vehicles/{id}/command/auto_conditioning_start` / `_stop` – toggles HVAC.
+    - `POST /api/1/vehicles/{id}/wake_up` – wakes the vehicle over BLE.
+
+Responses intentionally stick to the minimum fields used by the bundled `docs/evcc` provider to stay lightweight.
+
 ## Miles vs Km
 
 By default the car reports miles, so this integration returns miles. In home assistant you can edit the sensor and select the preferred unit of measurement there.

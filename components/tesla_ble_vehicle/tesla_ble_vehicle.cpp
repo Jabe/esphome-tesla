@@ -2096,5 +2096,176 @@ namespace esphome
         break;
       }
     }
+
+    esphome::optional<float> TeslaBLEVehicle::get_battery_level() const
+    {
+      if (this->ChargeStateSensor != nullptr && this->ChargeStateSensor->has_state())
+      {
+        return this->ChargeStateSensor->state;
+      }
+      return {};
+    }
+
+    esphome::optional<float> TeslaBLEVehicle::get_charge_energy_added() const
+    {
+      if (this->ChargeEnergyAddedSensor != nullptr && this->ChargeEnergyAddedSensor->has_state())
+      {
+        return this->ChargeEnergyAddedSensor->state;
+      }
+      return {};
+    }
+
+    esphome::optional<float> TeslaBLEVehicle::get_charge_current() const
+    {
+      if (this->ChargeCurrentStateSensor != nullptr && this->ChargeCurrentStateSensor->has_state())
+      {
+        return this->ChargeCurrentStateSensor->state;
+      }
+      return {};
+    }
+
+    esphome::optional<float> TeslaBLEVehicle::get_charge_voltage() const
+    {
+      if (this->ChargeVoltageStateSensor != nullptr && this->ChargeVoltageStateSensor->has_state())
+      {
+        return this->ChargeVoltageStateSensor->state;
+      }
+      return {};
+    }
+
+    esphome::optional<float> TeslaBLEVehicle::get_charge_power() const
+    {
+      if (this->ChargePowerStateSensor != nullptr && this->ChargePowerStateSensor->has_state())
+      {
+        return this->ChargePowerStateSensor->state;
+      }
+      return {};
+    }
+
+    esphome::optional<float> TeslaBLEVehicle::get_charge_limit_soc() const
+    {
+      if (this->MaxSocStateSensor != nullptr && this->MaxSocStateSensor->has_state())
+      {
+        return this->MaxSocStateSensor->state;
+      }
+      return {};
+    }
+
+    esphome::optional<float> TeslaBLEVehicle::get_charge_current_request_max() const
+    {
+      if (this->MaxAmpsStateSensor != nullptr && this->MaxAmpsStateSensor->has_state())
+      {
+        return this->MaxAmpsStateSensor->state;
+      }
+      return {};
+    }
+
+    esphome::optional<float> TeslaBLEVehicle::get_minutes_to_full_charge() const
+    {
+      if (this->MinsToLimitStateSensor != nullptr && this->MinsToLimitStateSensor->has_state())
+      {
+        return this->MinsToLimitStateSensor->state;
+      }
+      return {};
+    }
+
+    esphome::optional<float> TeslaBLEVehicle::get_battery_range() const
+    {
+      if (this->BatteryRangeStateSensor != nullptr && this->BatteryRangeStateSensor->has_state())
+      {
+        return this->BatteryRangeStateSensor->state;
+      }
+      return {};
+    }
+
+    esphome::optional<float> TeslaBLEVehicle::get_odometer() const
+    {
+      if (this->OdometerStateSensor != nullptr && this->OdometerStateSensor->has_state())
+      {
+        return this->OdometerStateSensor->state;
+      }
+      return {};
+    }
+
+    esphome::optional<float> TeslaBLEVehicle::get_inside_temperature() const
+    {
+      if (this->insideTempStateSensor != nullptr && this->insideTempStateSensor->has_state())
+      {
+        return this->insideTempStateSensor->state;
+      }
+      return {};
+    }
+
+    esphome::optional<float> TeslaBLEVehicle::get_outside_temperature() const
+    {
+      if (this->outsideTempStateSensor != nullptr && this->outsideTempStateSensor->has_state())
+      {
+        return this->outsideTempStateSensor->state;
+      }
+      return {};
+    }
+
+    esphome::optional<float> TeslaBLEVehicle::get_charge_distance_added() const
+    {
+      if (this->ChargeDistanceAddedSensor != nullptr && this->ChargeDistanceAddedSensor->has_state())
+      {
+        return this->ChargeDistanceAddedSensor->state;
+      }
+      return {};
+    }
+
+    esphome::optional<std::string> TeslaBLEVehicle::get_charging_state_text() const
+    {
+      if (this->ChargingStateSensor != nullptr && this->ChargingStateSensor->has_state())
+      {
+        return this->ChargingStateSensor->state;
+      }
+      return {};
+    }
+
+    esphome::optional<bool> TeslaBLEVehicle::get_is_climate_on() const
+    {
+      if (this->isClimateOnSensor != nullptr && this->isClimateOnSensor->has_state())
+      {
+        return this->isClimateOnSensor->state;
+      }
+      return {};
+    }
+
+    esphome::optional<bool> TeslaBLEVehicle::get_is_asleep() const
+    {
+      if (this->isAsleepSensor != nullptr && this->isAsleepSensor->has_state())
+      {
+        return this->isAsleepSensor->state;
+      }
+      return {};
+    }
+
+    esphome::optional<bool> TeslaBLEVehicle::get_is_user_present() const
+    {
+      if (this->isUserPresentSensor != nullptr && this->isUserPresentSensor->has_state())
+      {
+        return this->isUserPresentSensor->state;
+      }
+      return {};
+    }
+
+    esphome::optional<bool> TeslaBLEVehicle::get_is_unlocked() const
+    {
+      if (this->isUnlockedSensor != nullptr && this->isUnlockedSensor->has_state())
+      {
+        return this->isUnlockedSensor->state;
+      }
+      return {};
+    }
+
+    esphome::optional<bool> TeslaBLEVehicle::get_is_charge_port_open() const
+    {
+      if (this->isChargeFlapOpenSensor != nullptr && this->isChargeFlapOpenSensor->has_state())
+      {
+        return this->isChargeFlapOpenSensor->state;
+      }
+      return {};
+    }
   } // namespace tesla_ble_vehicle
 } // namespace esphome

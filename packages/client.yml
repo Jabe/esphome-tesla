@@ -492,3 +492,9 @@ number:
     on_value:
       - lambda: |-
           id(tesla_ble_vehicle_id)->ble_disconnected_min_time_ = x * 1000;
+
+tesla_fleet_api_server:
+  id: tesla_fleet_api
+  vehicle: tesla_ble_vehicle_id
+  vin: $tesla_vin
+  display_name: ${friendly_name}
