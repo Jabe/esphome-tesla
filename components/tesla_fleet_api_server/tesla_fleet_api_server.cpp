@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <sstream>
 
 #include <esp_timer.h>
 
@@ -327,22 +328,23 @@ std::string TeslaFleetAPIServer::build_vehicle_summary_json() {
   std::string id_str = this->to_string_uint64(id);
   std::string state = this->get_state_string();
 
-  std::string json = "{\"response\":[{";
-  json += "\"id\":" + id_str + ",";
-  json += "\"vehicle_id\":" + id_str + ",";
+  std::stringstream ss;
+  ss << "{\"response\":[{";
+  ss << "\"id\":" << id_str << ",";
+  ss << "\"vehicle_id\":" << id_str << ",";
   if (!this->vin_.empty()) {
-    json += "\"vin\":\"" + escape_json(this->vin_) + "\",";
+    ss << "\"vin\":\"" << escape_json(this->vin_) << "\",";
   } else {
-    json += "\"vin\":null,";
+    ss << "\"vin\":null,";
   }
-  json += "\"display_name\":\"" + escape_json(this->display_name_) + "\",";
-  json += "\"state\":\"" + state + "\",";
-  json += "\"in_service\":false,";
-  json += "\"id_s\":\"" + id_str + "\",";
-  json += "\"calendar_enabled\":false,";
-  json += "\"api_version\":1";
-  json += "}],\"count\":1}";
-  return json;
+  ss << "\"display_name\":\"" << escape_json(this->display_name_) << "\",";
+  ss << "\"state\":\"" << state << "\",";
+  ss << "\"in_service\":false,";
+  ss << "\"id_s\":\"" << id_str << "\",";
+  ss << "\"calendar_enabled\":false,";
+  ss << "\"api_version\":1";
+  ss << "}],\"count\":1}";
+  return ss.str();
 }
 
 std::string TeslaFleetAPIServer::build_vehicle_details_json() {
@@ -350,32 +352,34 @@ std::string TeslaFleetAPIServer::build_vehicle_details_json() {
   std::string id_str = this->to_string_uint64(id);
   std::string state = this->get_state_string();
 
-  std::string json = "{\"response\":{";
-  json += "\"id\":" + id_str + ",";
-  json += "\"vehicle_id\":" + id_str + ",";
+  std::stringstream ss;
+  ss << "{\"response\":{";
+  ss << "\"id\":" << id_str << ",";
+  ss << "\"vehicle_id\":" << id_str << ",";
   if (!this->vin_.empty()) {
-    json += "\"vin\":\"" + escape_json(this->vin_) + "\",";
+    ss << "\"vin\":\"" << escape_json(this->vin_) << "\",";
   } else {
-    json += "\"vin\":null,";
+    ss << "\"vin\":null,";
   }
-  json += "\"display_name\":\"" + escape_json(this->display_name_) + "\",";
-  json += "\"state\":\"" + state + "\",";
-  json += "\"in_service\":false,";
-  json += "\"id_s\":\"" + id_str + "\",";
-  json += "\"calendar_enabled\":false,";
-  json += "\"api_version\":1";
-  json += "}}";
-  return json;
+  ss << "\"display_name\":\"" << escape_json(this->display_name_) << "\",";
+  ss << "\"state\":\"" << state << "\",";
+  ss << "\"in_service\":false,";
+  ss << "\"id_s\":\"" << id_str << "\",";
+  ss << "\"calendar_enabled\":false,";
+  ss << "\"api_version\":1";
+  ss << "}}";
+  return ss.str();
 }
 
 std::string TeslaFleetAPIServer::build_vehicle_state_object() {
-  std::string json = "{";
+  std::stringstream ss;
+  ss << "{";
   bool first = true;
   auto append = [&](const std::string &key, const std::string &value) {
     if (!first) {
-      json += ",";
+      ss << ",";
     }
-    json += "\"" + key + "\":" + value;
+    ss << "\"" << key << "\":" << value;
     first = false;
   };
 
@@ -397,21 +401,25 @@ std::string TeslaFleetAPIServer::build_vehicle_state_object() {
   int64_t timestamp = esp_timer_get_time() / 1000;
   append("timestamp", std::to_string(timestamp));
 
-  return json + "}";
+  ss << "}";
+  return ss.str();
 }
 
 std::string TeslaFleetAPIServer::build_vehicle_state_response() {
-  return "{\"response\":" + this->build_vehicle_state_object() + "}";
+  std::stringstream ss;
+  ss << "{\"response\":" << this->build_vehicle_state_object() << "}";
+  return ss.str();
 }
 
 std::string TeslaFleetAPIServer::build_charge_state_object() {
-  std::string json = "{";
+  std::stringstream ss;
+  ss << "{";
   bool first = true;
   auto append = [&](const std::string &key, const std::string &value) {
     if (!first) {
-      json += ",";
+      ss << ",";
     }
-    json += "\"" + key + "\":" + value;
+    ss << "\"" << key << "\":" << value;
     first = false;
   };
 
@@ -473,11 +481,14 @@ std::string TeslaFleetAPIServer::build_charge_state_object() {
   int64_t timestamp = esp_timer_get_time() / 1000;
   append("timestamp", std::to_string(timestamp));
 
-  return json + "}";
+  ss << "}";
+  return ss.str();
 }
 
 std::string TeslaFleetAPIServer::build_charge_state_response() {
-  return "{\"response\":" + this->build_charge_state_object() + "}";
+  std::stringstream ss;
+  ss << "{\"response\":" << this->build_charge_state_object() << "}";
+  return ss.str();
 }
 
 std::string TeslaFleetAPIServer::build_climate_state_object() {
@@ -486,16 +497,17 @@ std::string TeslaFleetAPIServer::build_climate_state_object() {
     climate_on = this->vehicle_->get_is_climate_on();
   }
 
-  std::string json = "{";
-  json += "\"is_auto_conditioning_on\":" + format_bool_optional(climate_on);
+  std::stringstream ss;
+  ss << "{";
+  ss << "\"is_auto_conditioning_on\":" << format_bool_optional(climate_on);
   if (this->vehicle_ != nullptr) {
     auto inside = this->vehicle_->get_inside_temperature();
     auto outside = this->vehicle_->get_outside_temperature();
-    json += ",\"inside_temp\":" + format_float_optional(inside, 1);
-    json += ",\"outside_temp\":" + format_float_optional(outside, 1);
+    ss << ",\"inside_temp\":" << format_float_optional(inside, 1);
+    ss << ",\"outside_temp\":" << format_float_optional(outside, 1);
   }
-  json += "}";
-  return json;
+  ss << "}";
+  return ss.str();
 }
 
 std::string TeslaFleetAPIServer::build_vehicle_data_response(const std::vector<std::string> &requested_endpoints) {
@@ -516,13 +528,14 @@ std::string TeslaFleetAPIServer::build_vehicle_data_response(const std::vector<s
     });
   };
 
-  std::string sections_json = "{";
+  std::stringstream ss_sections;
+  ss_sections << "{";
   bool first_section = true;
   auto append_section = [&](const std::string &key, const std::string &payload) {
     if (!first_section) {
-      sections_json += ",";
+      ss_sections << ",";
     }
-    sections_json += "\"" + key + "\":" + payload;
+    ss_sections << "\"" << key << "\":" << payload;
     first_section = false;
   };
 
@@ -535,20 +548,21 @@ std::string TeslaFleetAPIServer::build_vehicle_data_response(const std::vector<s
   if (contains_endpoint("climate_state")) {
     append_section("climate_state", this->build_climate_state_object());
   }
-  sections_json += "}";
+  ss_sections << "}";
 
-  std::string json = "{\"response\":{";
-  json += "\"result\":true,";
-  json += "\"reason\":\"The request was successfully processed.\",";
+  std::stringstream ss;
+  ss << "{\"response\":{";
+  ss << "\"result\":true,";
+  ss << "\"reason\":\"The request was successfully processed.\",";
   if (!this->vin_.empty()) {
-    json += "\"vin\":\"" + escape_json(this->vin_) + "\",";
+    ss << "\"vin\":\"" << escape_json(this->vin_) << "\",";
   } else {
-    json += "\"vin\":null,";
+    ss << "\"vin\":null,";
   }
-  json += "\"command\":\"vehicle_data\",";
-  json += "\"response\":" + sections_json;
-  json += "}}";
-  return json;
+  ss << "\"command\":\"vehicle_data\",";
+  ss << "\"response\":" << ss_sections.str();
+  ss << "}}";
+  return ss.str();
 }
 
 std::string TeslaFleetAPIServer::build_body_controller_state_object() {
@@ -588,38 +602,41 @@ std::string TeslaFleetAPIServer::build_body_controller_state_object() {
                            : std::string("\"VEHICLE_USER_PRESENCE_NOT_PRESENT\"");
   };
 
-  std::string json = "{";
-  json += "\"vehicleLockState\":" + get_lock_state() + ",";
-  json += "\"vehicleSleepStatus\":" + get_sleep_status() + ",";
-  json += "\"userPresence\":" + get_user_presence() + ",";
-  json += "\"timestamp\":" + std::to_string(esp_timer_get_time() / 1000);
-  json += "}";
-  return json;
+  std::stringstream ss;
+  ss << "{";
+  ss << "\"vehicleLockState\":" << get_lock_state() << ",";
+  ss << "\"vehicleSleepStatus\":" << get_sleep_status() << ",";
+  ss << "\"userPresence\":" << get_user_presence() << ",";
+  ss << "\"timestamp\":" << std::to_string(esp_timer_get_time() / 1000);
+  ss << "}";
+  return ss.str();
 }
 
 std::string TeslaFleetAPIServer::build_body_controller_state_response() {
-  return "{\"response\":" + this->build_body_controller_state_object() + "}";
+  std::stringstream ss;
+  ss << "{\"response\":" << this->build_body_controller_state_object() << "}";
+  return ss.str();
 }
 
 std::string TeslaFleetAPIServer::build_proxy_version_response() {
-  std::string json = "{\"response\":{";
-  json += "\"name\":\"" + std::string(PROXY_NAME) + "\",";
-  json += "\"version\":\"" + std::string(PROXY_VERSION) + "\"";
-  json += "}}";
-  return json;
+  std::stringstream ss;
+  ss << "{\"response\":{";
+  ss << "\"name\":\"" << std::string(PROXY_NAME) << "\",";
+  ss << "\"version\":\"" << std::string(PROXY_VERSION) << "\"";
+  ss << "}}";
+  return ss.str();
 }
 
 std::string TeslaFleetAPIServer::build_command_response_json(bool ok, const std::string &reason) {
-  std::string json = "{\"response\":{\"result\":";
-  json += ok ? "true" : "false";
-  json += ",\"reason\":\"";
-  if (reason.empty()) {
-    json += "";
-  } else {
-    json += escape_json(reason);
+  std::stringstream ss;
+  ss << "{\"response\":{\"result\":";
+  ss << (ok ? "true" : "false");
+  ss << ",\"reason\":\"";
+  if (!reason.empty()) {
+    ss << escape_json(reason);
   }
-  json += "\"}}";
-  return json;
+  ss << "\"}}";
+  return ss.str();
 }
 
 bool TeslaFleetAPIServer::extract_vehicle_suffix(httpd_req_t *req, std::string *suffix) {
