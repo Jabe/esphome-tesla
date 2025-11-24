@@ -476,10 +476,11 @@ namespace esphome
       size_t buffer_len_post_append = read_chunk_.buffer.size() + this->ble_read_buffer_.size();
       if (buffer_len_post_append > MAX_BLE_MESSAGE_SIZE)
       {
-        ESP_LOGE(TAG, "BLE RX: Message length (%d) exceeds max BLE message size", buffer_len_post_append);
+        ESP_LOGE(TAG, "BLE RX: Message length (%d) exceeds max BLE message size, discarding chunk", buffer_len_post_append);
         // clear buffer
         this->ble_read_buffer_.clear();
         this->ble_read_buffer_.shrink_to_fit();
+        this->ble_read_queue_.pop();  // Discard the oversized chunk
         return;
       }
 
