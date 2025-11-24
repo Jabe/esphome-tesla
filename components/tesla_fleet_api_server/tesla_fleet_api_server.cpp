@@ -1255,5 +1255,12 @@ esp_err_t TeslaFleetAPIServer::handle_post_set_sentry_mode(httpd_req_t *req) {
   return self->handle_command_result(req, result, "set_sentry_mode_failed");
 }
 
+TeslaFleetAPIServer::~TeslaFleetAPIServer() {
+  if (this->server_ != nullptr) {
+    httpd_stop(this->server_);
+    this->server_ = nullptr;
+  }
+}
+
 }  // namespace tesla_fleet_api_server
 }  // namespace esphome

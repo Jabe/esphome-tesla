@@ -24,6 +24,7 @@ class TeslaFleetAPIServer : public Component {
   void dump_config() override;
   float get_setup_priority() const override;
   void loop() override {}
+  ~TeslaFleetAPIServer();
 
  protected:
   tesla_ble_vehicle::TeslaBLEVehicle *vehicle_{nullptr};
