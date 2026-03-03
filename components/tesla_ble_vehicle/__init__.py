@@ -31,6 +31,7 @@ CONF_MAX_AMPS = "max_amps"
 CONF_MINS_TO_LIMIT = "mins_to_limit"
 CONF_BATTERY_RANGE = "battery_range"
 CONF_CHARGING_STATE = "charging_state"
+CONF_CHARGE_PORT_LATCH_STATE = "charge_port_latch_state"
 CONF_CHARGE_ENERGY_ADDED = "charge_energy_added"
 CONF_CHARGE_DISTANCE_ADDED = "charge_distance_added"
 CONF_LAST_UPDATE = "last_update"
@@ -38,6 +39,10 @@ CONF_IS_CLIMATE_ON = "is_climate_on"
 CONF_INTERNAL_TEMP = "internal_temp"
 CONF_EXTERNAL_TEMP = "external_temp"
 CONF_WINDOWS_STATE = "windows_state"
+CONF_TPMS_PRESSURE_FL = "tpms_pressure_fl"
+CONF_TPMS_PRESSURE_FR = "tpms_pressure_fr"
+CONF_TPMS_PRESSURE_RL = "tpms_pressure_rl"
+CONF_TPMS_PRESSURE_RR = "tpms_pressure_rr"
 CONF_POST_WAKE_POLL_TIME = "post_wake_poll_time" # How long to poll for data after car awakes (s)
 CONF_POLL_DATA_PERIOD = "poll_data_period" # Normal period when polling for data when not asleep (s)
 CONF_POLL_ASLEEP_PERIOD = "poll_asleep_period" # Period to poll for data when asleep (s)
@@ -130,6 +135,9 @@ CONFIG_SCHEMA = (
             cv.Optional(CONF_CHARGING_STATE): text_sensor.text_sensor_schema(
                 icon="mdi:ev-station"
             ).extend(),
+            cv.Optional(CONF_CHARGE_PORT_LATCH_STATE): text_sensor.text_sensor_schema(
+                icon="mdi:battery-lock"
+            ).extend(),
             cv.Optional(CONF_LAST_UPDATE): text_sensor.text_sensor_schema(
                 icon="mdi:update"
             ).extend(),
@@ -146,6 +154,22 @@ CONFIG_SCHEMA = (
             cv.Optional(CONF_EXTERNAL_TEMP): sensor.sensor_schema(
                 icon="mdi:sun-thermometer-outline", device_class=sensor.DEVICE_CLASS_TEMPERATURE,
                 accuracy_decimals=1, unit_of_measurement="°C"
+            ).extend(),
+            cv.Optional(CONF_TPMS_PRESSURE_FL): sensor.sensor_schema(
+                icon="mdi:tire", device_class=sensor.DEVICE_CLASS_PRESSURE,
+                accuracy_decimals=1, unit_of_measurement="bar"
+            ).extend(),
+            cv.Optional(CONF_TPMS_PRESSURE_FR): sensor.sensor_schema(
+                icon="mdi:tire", device_class=sensor.DEVICE_CLASS_PRESSURE,
+                accuracy_decimals=1, unit_of_measurement="bar"
+            ).extend(),
+            cv.Optional(CONF_TPMS_PRESSURE_RL): sensor.sensor_schema(
+                icon="mdi:tire", device_class=sensor.DEVICE_CLASS_PRESSURE,
+                accuracy_decimals=1, unit_of_measurement="bar"
+            ).extend(),
+            cv.Optional(CONF_TPMS_PRESSURE_RR): sensor.sensor_schema(
+                icon="mdi:tire", device_class=sensor.DEVICE_CLASS_PRESSURE,
+                accuracy_decimals=1, unit_of_measurement="bar"
             ).extend(),
         }
     )
@@ -243,6 +267,10 @@ async def to_code(config):
         conf = config[CONF_CHARGING_STATE]
         ts = await text_sensor.new_text_sensor(conf)
         cg.add(var.set_text_sensor_charging_state(ts))
+    if CONF_CHARGE_PORT_LATCH_STATE in config:
+        conf = config[CONF_CHARGE_PORT_LATCH_STATE]
+        ts = await text_sensor.new_text_sensor(conf)
+        cg.add(var.set_text_sensor_charge_port_latch_state(ts))
     if CONF_LAST_UPDATE in config:
         conf = config[CONF_LAST_UPDATE]
         ts = await text_sensor.new_text_sensor(conf)
@@ -263,3 +291,19 @@ async def to_code(config):
         conf = config[CONF_EXTERNAL_TEMP]
         ss = await sensor.new_sensor(conf)
         cg.add(var.set_sensor_external_temp_state(ss))
+    if CONF_TPMS_PRESSURE_FL in config:
+        conf = config[CONF_TPMS_PRESSURE_FL]
+        ss = await sensor.new_sensor(conf)
+        cg.add(var.set_sensor_tpms_pressure_fl_state(ss))
+    if CONF_TPMS_PRESSURE_FR in config:
+        conf = config[CONF_TPMS_PRESSURE_FR]
+        ss = await sensor.new_sensor(conf)
+        cg.add(var.set_sensor_tpms_pressure_fr_state(ss))
+    if CONF_TPMS_PRESSURE_RL in config:
+        conf = config[CONF_TPMS_PRESSURE_RL]
+        ss = await sensor.new_sensor(conf)
+        cg.add(var.set_sensor_tpms_pressure_rl_state(ss))
+    if CONF_TPMS_PRESSURE_RR in config:
+        conf = config[CONF_TPMS_PRESSURE_RR]
+        ss = await sensor.new_sensor(conf)
+        cg.add(var.set_sensor_tpms_pressure_rr_state(ss))
