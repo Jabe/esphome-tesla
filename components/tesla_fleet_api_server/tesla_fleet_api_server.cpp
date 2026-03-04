@@ -643,6 +643,8 @@ bool TeslaFleetAPIServer::extract_vehicle_suffix(httpd_req_t *req, std::string *
   const std::string uri(req->uri);
   const std::string prefix = "/api/1/vehicles/";
   if (uri.rfind(prefix, 0) != 0) {
+    httpd_resp_set_status(req, "400 Bad Request");
+    this->send_json(req, "{\"error\":\"invalid_vehicle_path\"}");
     return false;
   }
 
@@ -650,6 +652,8 @@ bool TeslaFleetAPIServer::extract_vehicle_suffix(httpd_req_t *req, std::string *
   auto slash_pos = remainder.find('/');
   std::string id_part = slash_pos == std::string::npos ? remainder : remainder.substr(0, slash_pos);
   if (id_part.empty()) {
+    httpd_resp_set_status(req, "400 Bad Request");
+    this->send_json(req, "{\"error\":\"missing_vehicle_id\"}");
     return false;
   }
 
@@ -680,6 +684,10 @@ bool TeslaFleetAPIServer::ensure_vehicle_available(httpd_req_t *req) {
 std::string TeslaFleetAPIServer::read_request_body(httpd_req_t *req) {
   std::string body;
   size_t remaining = req->content_len;
+  if (remaining > 1024) {
+    ESP_LOGW(TAG, "Request body too large: %u bytes", remaining);
+    return body;
+  }
   body.reserve(remaining);
   char buffer[128];
   while (remaining > 0) {
@@ -1087,6 +1095,11 @@ esp_err_t TeslaFleetAPIServer::handle_post_set_amps(httpd_req_t *req) {
     return self->send_json(req, "{\"error\":\"missing_charging_amps\"}");
   }
 
+  if (amps < 0 || amps > 48) {
+    httpd_resp_set_status(req, "400 Bad Request");
+    return self->send_json(req, "{\"error\":\"invalid_charging_amps\"}");
+  }
+
   int result = self->vehicle_->sendCarServerVehicleActionMessage(SET_CHARGING_AMPS, amps);
   return self->handle_command_result(req, result, "set_charging_amps_failed");
 }
@@ -1162,7 +1175,7 @@ esp_err_t TeslaFleetAPIServer::handle_post_charge_port_close(httpd_req_t *req) {
   if (!self->ensure_vehicle_available(req)) {
     return ESP_OK;
   }
-  int result = self->vehicle_->sendCarServerVehicleActionMessage(SET_CLOSE_CHARGE_PORT_DOOR, 0);
+  int result = self->vehicle_->sendCarServerVehicleActionMessage(SET_CLOSE_CHARGE_PORT_DOOR, 1);
   return self->handle_command_result(req, result, "charge_port_door_close_failed");
 }
 
