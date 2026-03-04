@@ -197,7 +197,7 @@ namespace esphome
       case BLECommandState::WAITING_FOR_INFOTAINMENT_AUTH:
         if (now - current_command.last_tx_at > MAX_LATENCY)
         {
-          if (!this->isAsleepSensor->state == false)
+          if (this->isAsleepSensor->state)
           {
             ESP_LOGW(TAG, "[%s] Car is asleep, initiating wake..", current_command.execute_name.c_str());
             current_command.state = BLECommandState::WAITING_FOR_WAKE;
@@ -1570,7 +1570,7 @@ namespace esphome
               return_code = tesla_ble_client_->buildCarServerVehicleActionMessage (static_cast<int32_t>(param), static_message_buffer_, &message_length, ACTION_SPECIFICS[action].actionTag);
               if ((action == SET_CHARGING_SWITCH) and (param == 1))
               { // If charging has been requested, enable continuous polling
-                car_is_charging_ = true;
+                car_is_charging_ = 1;
               }
               break;
             default:
@@ -1823,7 +1823,8 @@ namespace esphome
                 case CarServer_ChargeState_ChargingState_Disconnected_tag:
                 case CarServer_ChargeState_ChargingState_NoPower_tag:
                 case CarServer_ChargeState_ChargingState_Stopped_tag:
-                  MinsToLimitStateSensor->publish_state (NAN); // If not charging, minutes to limit makes no sense (and run into default as not charging)
+                  MinsToLimitStateSensor->publish_state (NAN); // If not charging, minutes to limit makes no sense
+                  // fall through
                 default:
                   car_is_charging_ = 0;
               }
@@ -1913,7 +1914,7 @@ namespace esphome
             {
               ESP_LOGI (TAG, "No data to set boot state");
             }
-            if (carserver_response.response_msg.vehicleData.closures_state.which_optional_window_open_driver_front)
+            if (carserver_response.response_msg.vehicleData.closures_state.which_optional_door_open_trunk_front)
             {
               setFrunkState (carserver_response.response_msg.vehicleData.closures_state.optional_door_open_trunk_front.door_open_trunk_front);
             }
