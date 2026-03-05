@@ -57,13 +57,13 @@ CONFIG_SCHEMA = (
             cv.GenerateID(CONF_ID): cv.declare_id(TeslaBLEVehicle),
             # add support to set VIN (required)
             cv.Required(CONF_VIN): cv.string,
-            cv.Optional(CONF_POST_WAKE_POLL_TIME): cv.uint16_t,
-            cv.Optional(CONF_POLL_DATA_PERIOD): cv.uint16_t,
-            cv.Optional(CONF_POLL_ASLEEP_PERIOD): cv.uint16_t,
-            cv.Optional(CONF_POLL_CHARGING_PERIOD): cv.uint16_t,
-            cv.Optional(CONF_BLE_DISCONNECTED_MIN_TIME): cv.uint16_t,
-            cv.Optional(CONF_FAST_POLL_IF_UNLOCKED): cv.uint16_t,
-            cv.Optional(CONF_WAKE_ON_BOOT): cv.uint16_t,
+            cv.Optional(CONF_POST_WAKE_POLL_TIME, default=300): cv.uint16_t,
+            cv.Optional(CONF_POLL_DATA_PERIOD, default=60): cv.uint16_t,
+            cv.Optional(CONF_POLL_ASLEEP_PERIOD, default=60): cv.uint16_t,
+            cv.Optional(CONF_POLL_CHARGING_PERIOD, default=10): cv.uint16_t,
+            cv.Optional(CONF_BLE_DISCONNECTED_MIN_TIME, default=300): cv.uint16_t,
+            cv.Optional(CONF_FAST_POLL_IF_UNLOCKED, default=0): cv.uint16_t,
+            cv.Optional(CONF_WAKE_ON_BOOT, default=0): cv.uint16_t,
             cv.Optional(CONF_IS_ASLEEP): binary_sensor.binary_sensor_schema(
                 icon="mdi:sleep"
             ).extend(),
