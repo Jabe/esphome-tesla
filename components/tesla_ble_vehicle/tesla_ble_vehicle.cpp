@@ -99,7 +99,7 @@ namespace esphome
         return;
       }
 
-      BLECommand current_command = command_queue_.front();
+      BLECommand &current_command = command_queue_.front();
       uint32_t now = millis();
       // Overall timeout check
       if ((now - current_command.started_at) > COMMAND_TIMEOUT)
@@ -644,7 +644,7 @@ namespace esphome
 
             if (!command_queue_.empty())
             {
-              BLECommand current_command = command_queue_.front();
+              BLECommand &current_command = command_queue_.front();
               switch (current_command.domain)
               {
               case UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY:
@@ -721,7 +721,7 @@ namespace esphome
             log_vcsec_command_status(TAG, &vcsec_message.sub_message.commandStatus);
             if (!command_queue_.empty())
             {
-              BLECommand current_command = command_queue_.front();
+              BLECommand &current_command = command_queue_.front();
               if (current_command.domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY)
               {
                 switch (vcsec_message.sub_message.commandStatus.operationStatus)
@@ -809,7 +809,7 @@ namespace esphome
           log_carserver_response(TAG, &static_carserver_response_);
           if (static_carserver_response_.has_actionStatus && !command_queue_.empty())
           {
-            BLECommand current_command = command_queue_.front();
+            BLECommand &current_command = command_queue_.front();
             if (current_command.domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT)
             {
               switch (static_carserver_response_.actionStatus.result)
@@ -1651,7 +1651,7 @@ namespace esphome
 
       if (!command_queue_.empty())
       {
-        BLECommand current_command = command_queue_.front();
+        BLECommand &current_command = command_queue_.front();
         if ((domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY) &&
             (current_command.state == BLECommandState::WAITING_FOR_VCSEC_AUTH_RESPONSE))
         {
@@ -1692,7 +1692,7 @@ namespace esphome
       // check if we need to update the state in the command queue
       if (!command_queue_.empty())
       {
-        BLECommand current_command = command_queue_.front();
+        BLECommand &current_command = command_queue_.front();
         switch (current_command.domain)
         {
         case UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY:
