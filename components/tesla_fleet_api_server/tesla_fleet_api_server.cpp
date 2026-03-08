@@ -28,6 +28,8 @@ void TeslaFleetAPIServer::setup() {
   config.server_port = kServerPort;
   config.uri_match_fn = httpd_uri_match_wildcard;
   config.max_uri_handlers = 32;
+  config.max_open_sockets = 3;
+  config.lru_purge_enable = true;
 
   esp_err_t err = httpd_start(&this->server_, &config);
   if (err != ESP_OK) {
