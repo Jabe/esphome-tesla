@@ -88,6 +88,7 @@ There are two categories, those available even when asleep and those only when a
   - Odometer (miles)
   - Range (miles)
   - Shift state (eg Invalid, R, N, D)
+  - Tyre pressures (bar). The four sensors - front left, front right, rear left, rear right - are disabled by default. 
   - Windows open/closed
 
 ### Diagnostics
@@ -106,7 +107,7 @@ There are also several self-explanatory sensors. The `BLE Status` sensor reports
 
 ### Configuration
 
-There are five number and two switch actions that allow the dynamic update of the polling parameters (see below). These are disabled by default as I recommend they should be changed through yaml but they are useful for tuning/debugging your setup. Note there is no equivalent to the `update_interval` parameter - this can still only be updated through yaml (and so a re-build). The following lists them with the equivalent polling parameter:
+There are five number and two switch actions that allow the dynamic update of the polling parameters (see below). These are disabled by default as I recommend they should be changed through yaml but they are useful for tuning/debugging your setup. If enabled, their setting takes priority over the yaml definition and they are preserved over a reboot. Note there is no equivalent to the `update_interval` parameter - this can still only be updated through yaml (and so a re-build). The following lists them with the equivalent polling parameter:
 
 - Post wake poll time = post_wake_poll_time (number)
 - Poll data period = poll_data_period (number)
@@ -201,7 +202,6 @@ The following is the original method. I have never tried this and I do not maint
 1. Build and flash the firmware to your ESP32 device. See the 'Building and flashing ESP32 firmware' section below.
 1. Open the ESPHome logs in Home Assistant and wake it up. Watch for the "Found Tesla vehicle" message, which will contain the BLE MAC address of your vehicle.
     > Note: The vehicle must be in range and awake for the BLE MAC address to be discovered. If the vehicle is not awake, open the Tesla app and run any command
-
     ```log
     [00:00:00][D][tesla_ble_listener:044]: Parsing device: [CC:BB:D1:E2:34:F0]: BLE Device name 1
     [00:00:00][D][tesla_ble_listener:044]: Parsing device: [19:8A:BB:C3:D2:1F]: 
@@ -210,19 +210,15 @@ The following is the original method. I have never tried this and I do not maint
     [00:00:00][D][tesla_ble_listener:044]: Parsing device: [A0:B1:C2:D3:E4:F5]: S1a87a5a75f3df858C
     [00:00:00][I][tesla_ble_listener:054]: Found Tesla vehicle | Name: S1a87a5a75f3df858C | MAC: A0:B1:C2:D3:E4:F5
     ```
-
 1. Clean up your environment before the next step by disabling the `tesla_ble_listener` package in `packages/base.yml` and running
-
     ```sh
     make clean
     ```
-
 ## Building and flashing ESP32 firmware
 
-**Recommended path**
+### Recommended path
 
 For an example ESPHome dashboard, see [`tesla-ble-example.yml`](./tesla-ble.example.yml). Please always start from this. I strongly recommend building this using the ESPHome Device Builder add-on in Home Assistant as this makes building and re-building (eg for updates) much easier.
-If you have limited experience with flashing ESP32 devices and want to get more familiar, check Lazy Tech Geek's video https://www.youtube.com/watch?v=XMpNJgozF-c
 
 ### Board types
 
