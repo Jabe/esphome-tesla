@@ -14,7 +14,7 @@ jobs:
     name: Package layout and branding
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4.1.7
+      - uses: actions/checkout@v7.0.0
       - name: Run structural tests
         run: python3 tests/test_package_layout.py
 
@@ -27,7 +27,7 @@ jobs:
         file:
           - tesla-ble.local.yml
     steps:
-      - uses: actions/checkout@v4.1.7
+      - uses: actions/checkout@v7.0.0
       - name: Mock secrets.yaml from example
         run: cp secrets.yaml.example secrets.yaml
       - name: Get ESPHome version
@@ -36,8 +36,7 @@ jobs:
           esphome_version=$(grep esphome requirements.txt | cut -d'=' -f3)
           echo "esphome_version=$esphome_version" >> "$GITHUB_OUTPUT"
       - name: Validate ESPHome configuration
-        uses: esphome/build-action@v3.2.0
+        uses: esphome/build-action@v7.3.0
         with:
-          yaml_file: ${{ matrix.file }}
-          cache: true
+          yaml-file: ${{ matrix.file }}
           version: ${{ steps.get_esphome_version.outputs.esphome_version }}
