@@ -226,6 +226,8 @@ Responses stay minimal for the bundled `docs/evcc` provider.
 
 **CLI:** Python 3.10+, GNU Make (optional wrapper)
 
+**ESPHome version:** no strict minimum — the version pinned in `requirements.txt` is only what CI builds against. Confirmed working down to 2026.6.5; the esp-idf `advanced:` example (`sram1_as_iram`) needs ≥ 2026.4.0.
+
 ## Secrets and BLE MAC
 
 Packages never reference `!secret` themselves — your node config supplies the values (via top-level `substitutions` or package `vars`), so secret names are entirely yours. The example config maps them like this — copy `secrets.yaml.example` → `secrets.yaml` and set at least:

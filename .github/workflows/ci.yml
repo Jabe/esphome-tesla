@@ -33,7 +33,7 @@ jobs:
       - name: Get ESPHome version
         id: get_esphome_version
         run: |
-          esphome_version=$(grep esphome requirements.txt | cut -d'=' -f3)
+          esphome_version=$(grep '^esphome==' requirements.txt | cut -d'=' -f3)
           echo "esphome_version=$esphome_version" >> "$GITHUB_OUTPUT"
       - name: Validate ESPHome configuration
         uses: esphome/build-action@v7.3.0
