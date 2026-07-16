@@ -1,44 +1,107 @@
+# Example node config — explicit package shopping list (see packages/ layout).
+# Always start from this file. Pick Wi-Fi *or* Ethernet, and optionally Fleet API.
 substitutions:
-  # Note substitutions in your yaml will override those here
   friendly_name: Tesla BLE
   device_name: tesla-ble
   device_description: Tesla BLE
-  ble_mac_address: !secret ble_mac_address # note this and the following are mandatory and pulled from the secrets file
+  ble_mac_address: !secret ble_mac_address
   tesla_vin: !secret tesla_vin
   charging_amps_max: "32"
-
-# The following shows the default board and variant settings. 
-# Uncomment and changing them is only needed if they are not appropriate for your board (see read.me documentation for support):
-  #board: "esp32dev"
-  #variant: "ESP32"
+  # ota_password: !secret ota_password  # uncomment to enable OTA auth
+  # Only needed with connectivity/wifi.yml:
+  # wifi_ssid: !secret wifi_ssid
+  # wifi_password: !secret wifi_password
+  # Override board defaults only if needed (defaults come from the board package):
+  # board: "esp32dev"
+  # variant: "ESP32"
 
 api:
   encryption:
-    key: xxxxxxxxxxxxx= # use "key: !secret your_secret_key_name" for greater security
+    key: !secret api_encryption_key
 
+# ---------------------------------------------------------------------------
+# Packages (map form). Pin a ref and set refresh for reproducible remote builds.
+# For local development from a checkout, use tesla-ble.local.yml instead.
+# ---------------------------------------------------------------------------
 packages:
-  remote_package_files:
-    url: https://github.com/PedroKTFC/esphome-tesla-ble/
-    path: packages
-    files: [base.yml, common.yml, project.yml, client.yml]
-  # listener: github://PedroKTFC/esphome-tesla-ble/packages/listener.yml # Uncomment this to scan find your VIN BLE MAC address
-  # language: github://PedroKTFC/esphome-tesla-ble/packages/language_hu.yml # Uncomment this to translate the entity names to your language. If yours is missing, submit a PR here!
-  # language: github://PedroKTFC/esphome-tesla-ble/packages/language_de.yml # Uncomment this to translate the entity names to your language. If yours is missing, submit a PR here!
+  base:
+    url: github://Jabe/esphome-tesla-ble
+    file: packages/core/base.yml
+    ref: newteslalib
+    refresh: 1d
 
-# The following shows how to change the name of a sensor and how to change any of the parameters.
-# tesla_ble_vehicle: # THIS LINE MUST BE UNCOMMENTED IF ANY OF THE CHANGES BELOW ARE WANTED
+  board:
+    url: github://Jabe/esphome-tesla-ble
+    file: packages/boards/esp32dev.yml
+    ref: newteslalib
+    refresh: 1d
+  # Alternatives:
+  # board: github://Jabe/esphome-tesla-ble/packages/boards/m5stack-atoms3.yml@newteslalib
+  # board: github://Jabe/esphome-tesla-ble/packages/boards/m5stack-nanoc6.yml@newteslalib
 
-# You can change any sensor name in Home Assistant. However you can also change them here if it is more convenient for you.
-# For a list of all sensors etc, see the file client.yml in the packages directory.
-#  odometer: # miles by default, edit the entity in home assistant if you need km
-#    name: "Odometro" # Rename if desired
-# End of renaming
+  # Pick ONE network package:
+  network:
+    url: github://Jabe/esphome-tesla-ble
+    file: packages/connectivity/ethernet-lan8720.yml
+    ref: newteslalib
+    refresh: 1d
+    # vars:   # optional pin overrides for non-default PoE boards
+    #   mdc_pin: GPIO23
+    #   mdio_pin: GPIO18
+    #   clk_pin: GPIO17
+    #   clk_mode: CLK_OUT
+    #   power_pin: GPIO12
+  # network: github://Jabe/esphome-tesla-ble/packages/connectivity/wifi.yml@newteslalib
 
-# At the time of writing, these are set to the default values. If you require a different value, uncomment and edit the value
-#  update_interval: 10s # Base polling interval, used for VCSEC sensors
-#  post_wake_poll_time: 300 # How long to poll for data after car awakes at poll_data_period speed (s)
-#  poll_data_period: 60 # Polling interval after awakening during post_wake_poll_time interval (s)
-#  poll_charging_period: 10 # Period to poll for data when charging (s)
-#  poll_asleep_period: 60 # Period to poll for data when asleep (s)
-#  ble_disconnected_min_time: 300 # Minimum time BLE must be disconnected before sensors are Unknown (s)
-#  fast_poll_if_unlocked: 1 # if != 0, fast polls are enabled when unlocked
+  ble_tracker:
+    url: github://Jabe/esphome-tesla-ble
+    file: packages/core/ble_tracker.yml
+    ref: newteslalib
+    refresh: 1d
+
+  diagnostics:
+    url: github://Jabe/esphome-tesla-ble
+    file: packages/core/diagnostics.yml
+    ref: newteslalib
+    refresh: 1d
+
+  vehicle:
+    url: github://Jabe/esphome-tesla-ble
+    file: packages/features/vehicle.yml
+    ref: newteslalib
+    refresh: 1d
+
+  # Optional: Fleet API HTTP mirror (evcc etc.)
+  fleet_api:
+    url: github://Jabe/esphome-tesla-ble
+    file: packages/features/fleet_api.yml
+    ref: newteslalib
+    refresh: 1d
+
+  # Optional: scan for VIN BLE MAC (can run without vehicle package)
+  # listener: github://Jabe/esphome-tesla-ble/packages/features/listener.yml@newteslalib
+
+  # Optional languages (extend entity names):
+  # language: github://Jabe/esphome-tesla-ble/packages/features/language_de.yml@newteslalib
+  # language: github://Jabe/esphome-tesla-ble/packages/features/language_hu.yml@newteslalib
+
+# Top-level blocks deep-merge into the packages — no fork, no !extend needed.
+# Example: esp-idf advanced options on top of the board package:
+# esp32:
+#   framework:
+#     type: esp-idf
+#     advanced:
+#       minimum_chip_revision: "3.0"
+#       sram1_as_iram: true
+
+# Optional vehicle entity renames / poll overrides — uncomment tesla_ble_vehicle first:
+# tesla_ble_vehicle:
+#   odometer:
+#     name: "Odometer"
+#   update_interval: 10s
+#   post_wake_poll_time: 300
+#   poll_data_period: 60
+#   poll_charging_period: 10
+#   poll_asleep_period: 60
+#   ble_disconnected_min_time: 300
+#   fast_poll_if_unlocked: 0

@@ -1,6 +1,6 @@
 # About
 
-ESPHome Tesla BLE
+ESPHome Tesla BLE (Jabe)
 
 # Installation
 

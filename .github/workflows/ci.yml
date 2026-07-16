@@ -7,27 +7,32 @@ permissions:
   contents: read
 
 jobs:
+  structure:
+    name: Package layout and branding
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.1.7
+      - name: Run structural tests
+        run: python3 tests/test_package_layout.py
+
   ci:
-    name: Building ${{ matrix.file }}
+    name: Config ${{ matrix.file }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         file:
-          - tesla-ble-esp32-generic.yml
-          - tesla-ble-m5stack-atoms3.yml
-          - tesla-ble-m5stack-nanoc6.yml
+          - tesla-ble.local.yml
     steps:
       - uses: actions/checkout@v4.1.7
       - name: Mock secrets.yaml from example
         run: cp secrets.yaml.example secrets.yaml
       - name: Get ESPHome version
         id: get_esphome_version
-        # read esphome version from requirements.txt
         run: |
           esphome_version=$(grep esphome requirements.txt | cut -d'=' -f3)
           echo "esphome_version=$esphome_version" >> "$GITHUB_OUTPUT"
-      - name: Build ESPHome firmware to verify configuration
+      - name: Validate ESPHome configuration
         uses: esphome/build-action@v3.2.0
         with:
           yaml_file: ${{ matrix.file }}

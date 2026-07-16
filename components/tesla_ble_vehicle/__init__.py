@@ -3,7 +3,7 @@ import esphome.config_validation as cv
 from esphome.components import ble_client, binary_sensor, text_sensor, sensor
 from esphome.const import CONF_ID
 
-CODEOWNERS = ["@PedroKTFC"]
+CODEOWNERS = ["@Jabe"]
 DEPENDENCIES = ["ble_client"]
 
 tesla_ble_vehicle_ns = cg.esphome_ns.namespace("tesla_ble_vehicle")

@@ -1,2 +1,3 @@
-- components: [tesla_ble_vehicle, tesla_ble_listener]
+# Local development: load components from this repo checkout.
+- components: [tesla_ble_vehicle, tesla_ble_listener, tesla_fleet_api_server]
   source: components

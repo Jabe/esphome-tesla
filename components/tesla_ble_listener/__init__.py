@@ -3,7 +3,7 @@ import esphome.config_validation as cv
 from esphome.components import esp32_ble_tracker
 from esphome.const import CONF_ID
 
-CODEOWNERS = ["@yoziru"]
+CODEOWNERS = ["@Jabe"]
 DEPENDENCIES = ["esp32_ble_tracker"]
 CONF_VIN = "vin"
 

@@ -1,0 +1,8 @@
+# Optional Tesla Fleet API HTTP mirror (e.g. for evcc). Requires features/vehicle.yml.
+# Requires tesla_vin from your node config (top-level substitutions or package
+# vars), e.g. via !secret.
+tesla_fleet_api_server:
+  id: tesla_fleet_api
+  vehicle: tesla_ble_vehicle_id
+  vin: $tesla_vin
+  display_name: ${friendly_name}

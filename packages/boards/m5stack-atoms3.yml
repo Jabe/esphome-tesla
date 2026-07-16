@@ -1,10 +1,17 @@
+# M5Stack Atom S3 board package (pins + status LED / button).
 substitutions:
   board: esp32-s3-devkitc-1
   variant: esp32s3
   flash_size: 8MB
 
+esp32:
+  board: $board
+  variant: $variant
+  flash_size: $flash_size
+  framework:
+    type: esp-idf
+
 # Board specific entities
-# Output that blinks the LED
 output:
   - platform: template
     id: status_output
@@ -24,25 +31,22 @@ output:
           - light.turn_off: led
 
 light:
-  # Enable status LED
   - platform: status_led
     output: status_output
     name: "Status Led"
     entity_category: diagnostic
 
-  #G35=RGB WS2812C-2020
+  # G35=RGB WS2812C-2020
   - platform: esp32_rmt_led_strip
     rgb_order: GRB
     pin: 35
     num_leds: 4
-    # RMT 0 channels will be occupied by IR - Not Supported on IDF 5.x and onwards
-    # rmt_channel: 1
     chipset: ws2812
     id: led
     name: "Led"
     entity_category: diagnostic
 
-#G41=Button
+# G41=Button
 binary_sensor:
   - platform: gpio
     name: Button

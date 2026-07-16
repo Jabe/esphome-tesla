@@ -1,28 +1,22 @@
+# Minimal core: esphome identity, logger, api, ota, component sources.
+# No network, no vehicle entities, no Fleet API — pick those as separate packages.
 substitutions:
   device_description: Interact with Tesla vehicles over BLE using ESPHome and Home Assistant
-  board: "esp32dev"   # defaults
-  variant: "ESP32"
-  flash_size: "4MB"
+  # TeslaBLE C++ library dependency (historical upstream library; not this repo)
   BLE_library: "https://github.com/PedroKTFC/tesla-ble.git"
   tesla_ble_component: "github://Jabe/esphome-tesla-ble"
-  ble_presence_timeout: 30s
+  # OTA auth is off by default; set from your node config (e.g. !secret) to enable.
+  ota_password: ""
 
 esphome:
   project:
-    name: PedroKTFC.esphome-tesla-ble
+    name: Jabe.esphome-tesla-ble
     version: "2026.2.0"
   name: ${device_name}
   name_add_mac_suffix: false
   friendly_name: ${friendly_name}
   libraries:
     - TeslaBLE=${BLE_library}
-
-esp32:
-  board: $board
-  variant: $variant
-  flash_size: $flash_size
-  framework:
-    type: esp-idf
 
 external_components:
   - source: $tesla_ble_component
@@ -34,14 +28,8 @@ external_components:
 logger:
   level: INFO
 
+api:
+
 ota:
   platform: esphome
-  password: !secret ota_password
-
-ethernet:
-  type: LAN8720
-  mdc_pin: GPIO23
-  mdio_pin: GPIO18
-  clk_mode: GPIO17_OUT
-  phy_addr: 0
-  power_pin: GPIO12
+  password: ${ota_password}

@@ -1,0 +1,41 @@
+# Local checkout variant of the example — same shopping list, local !include paths.
+# Use this for offline `esphome config` / compile from a git clone.
+substitutions:
+  friendly_name: Tesla BLE
+  device_name: tesla-ble
+  device_description: Tesla BLE
+  ble_mac_address: !secret ble_mac_address
+  tesla_vin: !secret tesla_vin
+  charging_amps_max: "32"
+  # ota_password: !secret ota_password  # uncomment to enable OTA auth
+  # Only needed with connectivity/wifi.yml:
+  # wifi_ssid: !secret wifi_ssid
+  # wifi_password: !secret wifi_password
+  # Load components from this working tree instead of github://
+  tesla_ble_component: components
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+packages:
+  base: !include packages/core/base.yml
+  board: !include packages/boards/esp32dev.yml
+  # Pick ONE:
+  network: !include packages/connectivity/ethernet-lan8720.yml
+  # network: !include packages/connectivity/wifi.yml
+  ble_tracker: !include packages/core/ble_tracker.yml
+  diagnostics: !include packages/core/diagnostics.yml
+  vehicle: !include packages/features/vehicle.yml
+  fleet_api: !include packages/features/fleet_api.yml
+  # listener: !include packages/features/listener.yml
+  # language: !include packages/features/language_de.yml
+
+# Top-level blocks deep-merge into the packages — no fork, no !extend needed.
+# Example: esp-idf advanced options on top of the board package:
+# esp32:
+#   framework:
+#     type: esp-idf
+#     advanced:
+#       minimum_chip_revision: "3.0"
+#       sram1_as_iram: true

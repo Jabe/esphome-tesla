@@ -1,0 +1,5 @@
+# Optional: scan for Tesla BLE MAC using VIN. Include instead of (or alongside)
+# vehicle. Requires tesla_vin from your node config (top-level substitutions or
+# package vars), e.g. via !secret.
+tesla_ble_listener:
+  vin: $tesla_vin

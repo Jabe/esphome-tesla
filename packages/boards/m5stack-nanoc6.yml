@@ -1,19 +1,15 @@
-##--- NOTE -------------------------------------------------------------##
-# This file is not needed and not used in this repo configuration.       #
-# It was taken over by forking the original yoziru repo.                 #
-# In case a M5stack Nano C6 is used, nescessary config can be made in    #
-#   the root yaml file (tesla-ble.example.yml) as described in the       #
-#   read.me.                                                             #
-##----------------------------------------------------------------------##
-
-
+# M5Stack Nano C6 board package (pins + status LED / button).
 substitutions:
   board: esp32-c6-devkitm-1
   variant: esp32c6
   flash_size: 4MB
 
 esp32:
+  board: $board
+  variant: $variant
+  flash_size: $flash_size
   framework:
+    type: esp-idf
     sdkconfig_options:
       CONFIG_OPENTHREAD_ENABLED: n
       CONFIG_ENABLE_WIFI_STATION: y
@@ -27,13 +23,11 @@ light:
     entity_category: diagnostic
     pin: GPIO7
 
-  #G20=RGB WS2812
+  # G20=RGB WS2812
   - platform: esp32_rmt_led_strip
     rgb_order: GRB
     pin: GPIO20
     num_leds: 4
-    # RMT 0 channels will be occupied by IR - Not Supported on IDF 5.x and onwards
-    # rmt_channel: 1 
     chipset: ws2812
     name: "RGB LED"
     entity_category: diagnostic
@@ -46,7 +40,7 @@ power_supply:
     enable_time: 10ms
     keep_on_time: 10ms
 
-#G9=Button
+# G9=Button
 binary_sensor:
   - platform: gpio
     name: Button

@@ -1,0 +1,6 @@
+# Optional Wi-Fi connectivity. No defaults here on purpose: supply wifi_ssid
+# and wifi_password from your node config (top-level substitutions or package
+# vars), e.g. via !secret.
+wifi:
+  ssid: ${wifi_ssid}
+  password: ${wifi_password}
