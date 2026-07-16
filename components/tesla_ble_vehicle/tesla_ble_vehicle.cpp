@@ -394,6 +394,9 @@ namespace esphome
         {
           ESP_LOGW(TAG, "[%s] Timed out while waiting for command response", current_command.execute_name.c_str());
           current_command.state = BLECommandState::READY;
+          // Discard any partial data so it can't corrupt the next response
+          this->ble_read_buffer_.clear();
+          this->ble_read_buffer_.shrink_to_fit();
         }
         break;
       case BLECommandState::WAITING_FOR_GET_POST_SET:
@@ -500,6 +503,9 @@ namespace esphome
       if (return_code != 0)
       {
         ESP_LOGW(TAG, "BLE RX: Failed to parse incoming message");
+        this->ble_read_buffer_.clear();
+        this->ble_read_buffer_.shrink_to_fit();
+        return; // Don't queue the unparsed message; let the command time out
       }
       ESP_LOGD(TAG, "BLE RX: Parsed UniversalMessage");
       // clear read buffer
@@ -1763,6 +1769,22 @@ namespace esphome
             {
               ESP_LOGI (TAG, "No data to set charger power");
             }
+            if (carserver_response.response_msg.vehicleData.charge_state.which_optional_charger_phases)
+            {
+              setChargerPhases (carserver_response.response_msg.vehicleData.charge_state.optional_charger_phases.charger_phases);
+            }
+            else
+            {
+              ESP_LOGI (TAG, "No data to set charger phases");
+            }
+            if (carserver_response.response_msg.vehicleData.charge_state.which_optional_charge_rate_mph)
+            {
+              setChargeRate (carserver_response.response_msg.vehicleData.charge_state.optional_charge_rate_mph.charge_rate_mph);
+            }
+            else
+            {
+              ESP_LOGI (TAG, "No data to set charge rate");
+            }
             if (carserver_response.response_msg.vehicleData.charge_state.which_optional_charge_limit_soc)
             {            
               setMaxSoc (carserver_response.response_msg.vehicleData.charge_state.optional_charge_limit_soc.charge_limit_soc);
@@ -2228,8 +2250,7 @@ namespace esphome
         }
         ESP_LOGV(TAG, "RAM left: %ld, minimum was: %ld", esp_get_free_heap_size(), esp_get_minimum_free_heap_size());
         // copy notify value to buffer
-        std::vector<unsigned char> buffer(param->notify.value, param->notify.value + param->notify.value_len);
-        ble_read_queue_.emplace(buffer);
+        ble_read_queue_.emplace(param->notify.value, param->notify.value + param->notify.value_len);
         break;
       }
 

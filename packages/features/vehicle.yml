@@ -61,6 +61,12 @@ tesla_ble_vehicle:
   charge_power:
     id: "charge_power"
     name: "Charge power"
+  charger_phases:
+    id: "charger_phases"
+    name: "Charger phases"
+  charge_rate:
+    id: "charge_rate"
+    name: "Charge rate"
   charge_energy_added:
     id: "charge_energy_added"
     name: "Charge energy added"

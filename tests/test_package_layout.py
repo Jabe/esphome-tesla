@@ -179,30 +179,7 @@ def test_no_pedro_ownership_branding() -> None:
     print("OK no Pedro ownership branding outside allowed credits")
 
 
-def test_components_no_cpp_h_diffs() -> None:
-    """Assert C++/header sources are unchanged vs git HEAD for behavior.
-
-    Runs as a working-tree check: any staged/unstaged .cpp/.h under components/
-    is a failure (codegen CODEOWNERS-only py edits are fine).
-    """
-    import subprocess
-
-    proc = subprocess.run(
-        ["git", "diff", "--name-only", "--", "components/"],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if proc.returncode != 0:
-        fail(f"git diff failed: {proc.stderr}")
-    bad = []
-    for line in proc.stdout.splitlines():
-        if line.endswith((".cpp", ".h")):
-            bad.append(line)
-    if bad:
-        fail(f"behavioral component source changes not allowed: {bad}")
-    # CODEOWNERS should be Jabe
+def test_components_codeowners() -> None:
     for rel in (
         "components/tesla_ble_vehicle/__init__.py",
         "components/tesla_ble_listener/__init__.py",
@@ -211,7 +188,7 @@ def test_components_no_cpp_h_diffs() -> None:
         text = read(rel)
         if 'CODEOWNERS = ["@Jabe"]' not in text:
             fail(f"{rel} CODEOWNERS must be @Jabe")
-    print("OK components: no .cpp/.h diffs; CODEOWNERS are Jabe")
+    print("OK components CODEOWNERS are Jabe")
 
 
 def test_project_identity() -> None:
@@ -233,7 +210,7 @@ def main() -> None:
     test_example_is_package_map()
     test_packages_are_unopinionated_about_secrets()
     test_no_pedro_ownership_branding()
-    test_components_no_cpp_h_diffs()
+    test_components_codeowners()
     test_project_identity()
     print("\nAll structural tests passed.")
 

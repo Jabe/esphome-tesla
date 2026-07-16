@@ -185,7 +185,9 @@ namespace esphome
             uint32_t received_at = millis();
 
             BLERXChunk(std::vector<unsigned char> b)
-                : buffer(b) {}
+                : buffer(std::move(b)) {}
+            BLERXChunk(const unsigned char *begin, const unsigned char *end)
+                : buffer(begin, end) {}
         };
 
         struct BLEResponse
@@ -366,6 +368,20 @@ namespace esphome
             {
                 ChargePowerStateSensor->publish_state (power);
             }
+            void setChargerPhases (int phases)
+            {
+                if (ChargerPhasesSensor != nullptr) // Sensor may not be configured in existing YAMLs
+                {
+                    ChargerPhasesSensor->publish_state (phases);
+                }
+            }
+            void setChargeRate (int rate)
+            {
+                if (ChargeRateSensor != nullptr) // Sensor may not be configured in existing YAMLs
+                {
+                    ChargeRateSensor->publish_state (rate);
+                }
+            }
             void setMaxSoc (int max)
             {
                 MaxSocStateSensor->publish_state (max);
@@ -486,6 +502,14 @@ namespace esphome
             void set_sensor_charge_power_state (sensor::Sensor *s)
             {
                 ChargePowerStateSensor = static_cast<sensor::Sensor *>(s);
+            }
+            void set_sensor_charger_phases_state (sensor::Sensor *s)
+            {
+                ChargerPhasesSensor = static_cast<sensor::Sensor *>(s);
+            }
+            void set_sensor_charge_rate_state (sensor::Sensor *s)
+            {
+                ChargeRateSensor = static_cast<sensor::Sensor *>(s);
             }
             void set_sensor_max_soc_state (sensor::Sensor *s)
             {
@@ -661,6 +685,8 @@ namespace esphome
             sensor::Sensor *ChargeCurrentStateSensor{nullptr};
             sensor::Sensor *ChargeVoltageStateSensor{nullptr};
             sensor::Sensor *ChargePowerStateSensor{nullptr};
+            sensor::Sensor *ChargerPhasesSensor{nullptr};
+            sensor::Sensor *ChargeRateSensor{nullptr};
             sensor::Sensor *MaxSocStateSensor{nullptr};
             sensor::Sensor *MaxAmpsStateSensor{nullptr};
             sensor::Sensor *MinsToLimitStateSensor{nullptr};

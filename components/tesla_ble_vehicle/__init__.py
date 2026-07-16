@@ -26,6 +26,8 @@ CONF_ODOMETER = "odometer"
 CONF_CHARGE_CURRENT = "charge_current"
 CONF_CHARGE_VOLTAGE = "charge_voltage"
 CONF_CHARGE_POWER = "charge_power"
+CONF_CHARGER_PHASES = "charger_phases"
+CONF_CHARGE_RATE = "charge_rate"
 CONF_MAX_SOC = "max_soc"
 CONF_MAX_AMPS = "max_amps"
 CONF_MINS_TO_LIMIT = "mins_to_limit"
@@ -115,6 +117,13 @@ CONFIG_SCHEMA = (
             cv.Optional(CONF_CHARGE_POWER): sensor.sensor_schema(
                 icon="mdi:lightning-bolt-circle", device_class=sensor.DEVICE_CLASS_POWER,
                 unit_of_measurement="kW"
+            ).extend(),
+            cv.Optional(CONF_CHARGER_PHASES): sensor.sensor_schema(
+                icon="mdi:sine-wave"
+            ).extend(),
+            cv.Optional(CONF_CHARGE_RATE): sensor.sensor_schema(
+                icon="mdi:speedometer", device_class=sensor.DEVICE_CLASS_SPEED,
+                unit_of_measurement="mph"
             ).extend(),
             cv.Optional(CONF_MAX_SOC): sensor.sensor_schema(
                 icon="mdi:battery-lock", device_class=sensor.DEVICE_CLASS_BATTERY,
@@ -239,6 +248,14 @@ async def to_code(config):
         conf = config[CONF_CHARGE_POWER]
         ss = await sensor.new_sensor(conf)
         cg.add(var.set_sensor_charge_power_state(ss))
+    if CONF_CHARGER_PHASES in config:
+        conf = config[CONF_CHARGER_PHASES]
+        ss = await sensor.new_sensor(conf)
+        cg.add(var.set_sensor_charger_phases_state(ss))
+    if CONF_CHARGE_RATE in config:
+        conf = config[CONF_CHARGE_RATE]
+        ss = await sensor.new_sensor(conf)
+        cg.add(var.set_sensor_charge_rate_state(ss))
     if CONF_MAX_SOC in config:
         conf = config[CONF_MAX_SOC]
         ss = await sensor.new_sensor(conf)
