@@ -2,7 +2,7 @@
 esphome:
   name: ble-scanner
   project:
-    name: Jabe.esphome-tesla-ble
+    name: Jabe.esphome-tesla
     version: "2026.2.0"
 
 esp32:

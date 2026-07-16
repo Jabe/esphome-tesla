@@ -74,8 +74,8 @@ def test_base_is_minimal() -> None:
         # external_components may list component *names*; forbid config keys only
         if re.search(rf"^{re.escape(needle)}", base, re.MULTILINE):
             fail(f"base.yml must not configure {needle}")
-    if "Jabe.esphome-tesla-ble" not in base:
-        fail("base.yml project name must be Jabe.esphome-tesla-ble")
+    if "Jabe.esphome-tesla" not in base:
+        fail("base.yml project name must be Jabe.esphome-tesla")
     if "PedroKTFC.esphome-tesla-ble" in base:
         fail("base.yml still uses Pedro project name")
     print("OK base is minimal and Jabe-branded")
@@ -116,7 +116,7 @@ def test_example_is_package_map() -> None:
     for key in ("base:", "board:", "network:", "vehicle:"):
         if key not in example:
             fail(f"example shopping list missing {key}")
-    if "github://Jabe/esphome-tesla-ble" not in example:
+    if "github://Jabe/esphome-tesla" not in example:
         fail("example must point remote packages at Jabe")
     if "PedroKTFC" in example:
         fail("example still references PedroKTFC remotes")
@@ -216,10 +216,10 @@ def test_components_no_cpp_h_diffs() -> None:
 
 def test_project_identity() -> None:
     base = read("packages/core/base.yml")
-    if "github://Jabe/esphome-tesla-ble" not in base:
+    if "github://Jabe/esphome-tesla" not in base:
         fail("base default component source must be Jabe")
     dash = read("packages/external_components.dashboard.yml")
-    if "github://Jabe/esphome-tesla-ble" not in dash:
+    if "github://Jabe/esphome-tesla" not in dash:
         fail("dashboard external_components must be Jabe")
     if "PedroKTFC" in dash:
         fail("dashboard external_components still Pedro")

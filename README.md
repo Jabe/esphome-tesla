@@ -7,7 +7,7 @@
 
 Control and monitor a Tesla over Bluetooth Low Energy from an ESP32, with native Home Assistant entities via ESPHome.
 
-This is the **Jabe** hard fork of the project ([Jabe/esphome-tesla-ble](https://github.com/Jabe/esphome-tesla-ble)). Historical origin: yoziru → community forks; BLE protocol library dependency remains [PedroKTFC/tesla-ble](https://github.com/PedroKTFC/tesla-ble). This tree is maintained independently with modular packages (Ethernet, Wi‑Fi, optional Fleet API).
+This is the **Jabe** hard fork of the project ([Jabe/esphome-tesla](https://github.com/Jabe/esphome-tesla)). Historical origin: yoziru → community forks; BLE protocol library dependency remains [PedroKTFC/tesla-ble](https://github.com/PedroKTFC/tesla-ble). This tree is maintained independently with modular packages (Ethernet, Wi‑Fi, optional Fleet API).
 
 | Controls | Sensors-1 | Sensors-2| Diagnostic |
 | - | - | - | - |
@@ -50,9 +50,9 @@ Include **exactly one** network package:
 packages:
   # Ethernet (LAN8720 defaults; override pins with vars if needed)
   network:
-    url: github://Jabe/esphome-tesla-ble
+    url: github://Jabe/esphome-tesla
     file: packages/connectivity/ethernet-lan8720.yml
-    ref: newteslalib
+    ref: main
     refresh: 1d
     vars:
       mdc_pin: GPIO23
@@ -61,7 +61,7 @@ packages:
 
 ```yaml
 packages:
-  network: github://Jabe/esphome-tesla-ble/packages/connectivity/wifi.yml@newteslalib
+  network: github://Jabe/esphome-tesla/packages/connectivity/wifi.yml@main
 ```
 
 Do **not** include both. No fork required to switch — change the package line.
@@ -72,9 +72,9 @@ Vehicle control is `features/vehicle.yml`. The HTTP Fleet API mirror is optional
 
 ```yaml
 packages:
-  vehicle: github://Jabe/esphome-tesla-ble/packages/features/vehicle.yml@newteslalib
+  vehicle: github://Jabe/esphome-tesla/packages/features/vehicle.yml@main
   # omit the next line if you only want Home Assistant / BLE entities
-  fleet_api: github://Jabe/esphome-tesla-ble/packages/features/fleet_api.yml@newteslalib
+  fleet_api: github://Jabe/esphome-tesla/packages/features/fleet_api.yml@main
 ```
 
 ### Minimal shopping list
@@ -254,9 +254,9 @@ Default vehicle units are miles / bar. Change preferred units on the entity in H
 
 Package rules follow [`modern.md`](./modern.md): minimal base, one concern per file, hardware separate from features, package-local defaults overridable with `vars`, pin `ref` + `refresh` on remote packages.
 
-[commits-shield]: https://img.shields.io/github/commit-activity/y/Jabe/esphome-tesla-ble
-[commits]: https://github.com/Jabe/esphome-tesla-ble/commits/main
-[releases-shield]: https://img.shields.io/github/v/release/Jabe/esphome-tesla-ble
-[releases]: https://github.com/Jabe/esphome-tesla-ble/releases
-[last-commit-shield]: https://img.shields.io/github/last-commit/Jabe/esphome-tesla-ble
+[commits-shield]: https://img.shields.io/github/commit-activity/y/Jabe/esphome-tesla
+[commits]: https://github.com/Jabe/esphome-tesla/commits/main
+[releases-shield]: https://img.shields.io/github/v/release/Jabe/esphome-tesla
+[releases]: https://github.com/Jabe/esphome-tesla/releases
+[last-commit-shield]: https://img.shields.io/github/last-commit/Jabe/esphome-tesla
 [platform-shield]: https://img.shields.io/badge/platform-Home%20Assistant%20&%20ESPHome-blue

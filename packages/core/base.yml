@@ -4,13 +4,13 @@ substitutions:
   device_description: Interact with Tesla vehicles over BLE using ESPHome and Home Assistant
   # TeslaBLE C++ library dependency (historical upstream library; not this repo)
   BLE_library: "https://github.com/PedroKTFC/tesla-ble.git"
-  tesla_ble_component: "github://Jabe/esphome-tesla-ble"
+  tesla_ble_component: "github://Jabe/esphome-tesla"
   # OTA auth is off by default; set from your node config (e.g. !secret) to enable.
   ota_password: ""
 
 esphome:
   project:
-    name: Jabe.esphome-tesla-ble
+    name: Jabe.esphome-tesla
     version: "2026.2.0"
   name: ${device_name}
   name_add_mac_suffix: false
