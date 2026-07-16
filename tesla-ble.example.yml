@@ -25,25 +25,25 @@ api:
 # ---------------------------------------------------------------------------
 packages:
   base:
-    url: github://Jabe/esphome-tesla
+    url: https://github.com/Jabe/esphome-tesla
     file: packages/core/base.yml
-    ref: v1.0.0
+    ref: v1.0.1
     refresh: 1d
 
   board:
-    url: github://Jabe/esphome-tesla
+    url: https://github.com/Jabe/esphome-tesla
     file: packages/boards/esp32dev.yml
-    ref: v1.0.0
+    ref: v1.0.1
     refresh: 1d
   # Alternatives:
-  # board: github://Jabe/esphome-tesla/packages/boards/m5stack-atoms3.yml@v1.0.0
-  # board: github://Jabe/esphome-tesla/packages/boards/m5stack-nanoc6.yml@v1.0.0
+  # board: github://Jabe/esphome-tesla/packages/boards/m5stack-atoms3.yml@v1.0.1
+  # board: github://Jabe/esphome-tesla/packages/boards/m5stack-nanoc6.yml@v1.0.1
 
   # Pick ONE network package:
   network:
-    url: github://Jabe/esphome-tesla
+    url: https://github.com/Jabe/esphome-tesla
     file: packages/connectivity/ethernet-lan8720.yml
-    ref: v1.0.0
+    ref: v1.0.1
     refresh: 1d
     # vars:   # optional pin overrides for non-default PoE boards
     #   mdc_pin: GPIO23
@@ -51,39 +51,39 @@ packages:
     #   clk_pin: GPIO17
     #   clk_mode: CLK_OUT
     #   power_pin: GPIO12
-  # network: github://Jabe/esphome-tesla/packages/connectivity/wifi.yml@v1.0.0
+  # network: github://Jabe/esphome-tesla/packages/connectivity/wifi.yml@v1.0.1
 
   ble_tracker:
-    url: github://Jabe/esphome-tesla
+    url: https://github.com/Jabe/esphome-tesla
     file: packages/core/ble_tracker.yml
-    ref: v1.0.0
+    ref: v1.0.1
     refresh: 1d
 
   diagnostics:
-    url: github://Jabe/esphome-tesla
+    url: https://github.com/Jabe/esphome-tesla
     file: packages/core/diagnostics.yml
-    ref: v1.0.0
+    ref: v1.0.1
     refresh: 1d
 
   vehicle:
-    url: github://Jabe/esphome-tesla
+    url: https://github.com/Jabe/esphome-tesla
     file: packages/features/vehicle.yml
-    ref: v1.0.0
+    ref: v1.0.1
     refresh: 1d
 
   # Optional: Fleet API HTTP mirror (evcc etc.)
   fleet_api:
-    url: github://Jabe/esphome-tesla
+    url: https://github.com/Jabe/esphome-tesla
     file: packages/features/fleet_api.yml
-    ref: v1.0.0
+    ref: v1.0.1
     refresh: 1d
 
   # Optional: scan for VIN BLE MAC (can run without vehicle package)
-  # listener: github://Jabe/esphome-tesla/packages/features/listener.yml@v1.0.0
+  # listener: github://Jabe/esphome-tesla/packages/features/listener.yml@v1.0.1
 
   # Optional languages (extend entity names):
-  # language: github://Jabe/esphome-tesla/packages/features/language_de.yml@v1.0.0
-  # language: github://Jabe/esphome-tesla/packages/features/language_hu.yml@v1.0.0
+  # language: github://Jabe/esphome-tesla/packages/features/language_de.yml@v1.0.1
+  # language: github://Jabe/esphome-tesla/packages/features/language_hu.yml@v1.0.1
 
 # Top-level blocks deep-merge into the packages — no fork, no !extend needed.
 # Example: esp-idf advanced options on top of the board package:

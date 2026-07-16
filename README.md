@@ -50,9 +50,9 @@ Include **exactly one** network package:
 packages:
   # Ethernet (LAN8720 defaults; override pins with vars if needed)
   network:
-    url: github://Jabe/esphome-tesla
+    url: https://github.com/Jabe/esphome-tesla
     file: packages/connectivity/ethernet-lan8720.yml
-    ref: v1.0.0
+    ref: v1.0.1
     refresh: 1d
     vars:
       mdc_pin: GPIO23
@@ -61,7 +61,7 @@ packages:
 
 ```yaml
 packages:
-  network: github://Jabe/esphome-tesla/packages/connectivity/wifi.yml@v1.0.0
+  network: github://Jabe/esphome-tesla/packages/connectivity/wifi.yml@v1.0.1
 ```
 
 Do **not** include both. No fork required to switch — change the package line.
@@ -72,9 +72,9 @@ Vehicle control is `features/vehicle.yml`. The HTTP Fleet API mirror is optional
 
 ```yaml
 packages:
-  vehicle: github://Jabe/esphome-tesla/packages/features/vehicle.yml@v1.0.0
+  vehicle: github://Jabe/esphome-tesla/packages/features/vehicle.yml@v1.0.1
   # omit the next line if you only want Home Assistant / BLE entities
-  fleet_api: github://Jabe/esphome-tesla/packages/features/fleet_api.yml@v1.0.0
+  fleet_api: github://Jabe/esphome-tesla/packages/features/fleet_api.yml@v1.0.1
 ```
 
 ### Minimal shopping list
