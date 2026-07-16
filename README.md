@@ -104,6 +104,37 @@ esp32:
 
 `!extend` / `!remove` remain available for surgical edits inside package content (e.g. removing an entity by `id`).
 
+### Tracking `main` (testing unreleased changes)
+
+ESPHome caches `github://` sources for a day, so a moving ref like `@main` won't pick up new commits on rebuild. Two ways around it:
+
+```yaml
+substitutions:
+  # C++ components are fetched via external_components in core/base.yml —
+  # force a re-fetch on every build while testing:
+  tesla_ble_component_refresh: 0s
+
+packages:
+  # Packages: use the map form with refresh 0s ...
+  base:
+    url: github://Jabe/esphome-tesla
+    file: packages/core/base.yml
+    ref: main
+    refresh: 0s
+```
+
+Or pin an exact commit — immutable, so caching is harmless (also override the component source, or the C++ code stays stale):
+
+```yaml
+substitutions:
+  tesla_ble_component: github://Jabe/esphome-tesla@<commit-sha>
+
+packages:
+  base: github://Jabe/esphome-tesla/packages/core/base.yml@<commit-sha>
+```
+
+For day-to-day use, pin a release tag (`@v1.0.0`) and forget about caching entirely.
+
 ## If it doesn't build
 
 > [!TIP]

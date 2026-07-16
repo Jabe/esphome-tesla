@@ -5,6 +5,10 @@ substitutions:
   # TeslaBLE C++ library dependency (historical upstream library; not this repo)
   BLE_library: "https://github.com/PedroKTFC/tesla-ble.git"
   tesla_ble_component: "github://Jabe/esphome-tesla"
+  # How long ESPHome caches the components above. For testing a moving ref
+  # (e.g. @main), set this to 0s in your node config — or pin a commit SHA
+  # in tesla_ble_component instead.
+  tesla_ble_component_refresh: 1d
   # OTA auth is off by default; set from your node config (e.g. !secret) to enable.
   ota_password: ""
 
@@ -20,6 +24,7 @@ esphome:
 
 external_components:
   - source: $tesla_ble_component
+    refresh: ${tesla_ble_component_refresh}
     components:
       - tesla_ble_vehicle
       - tesla_ble_listener
