@@ -1,4 +1,4 @@
 # CI/dev pin only — NOT a user-facing minimum. The packages work with any
 # reasonably recent ESPHome; confirmed down to 2026.6.5, and the esp-idf
 # advanced example (sram1_as_iram) needs >= 2026.4.0.
-esphome==2026.7.0
+esphome==2026.7.2
