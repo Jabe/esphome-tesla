@@ -1569,11 +1569,11 @@ namespace esphome
           {
             case GetVehicleDataMessage:
             // Need to create a get vehicle data message
-              return_code = tesla_ble_client_->buildCarServerGetVehicleDataMessage (static_message_buffer_, &message_length, ACTION_SPECIFICS[action].actionTag);
+              return_code = actions_buildCarServerGetVehicleDataMessage (static_message_buffer_, &message_length, ACTION_SPECIFICS[action].actionTag);
               break;
             case VehicleActionMessage:
             // Need to create a vehicle action message
-              return_code = tesla_ble_client_->buildCarServerVehicleActionMessage (static_cast<int32_t>(param), static_message_buffer_, &message_length, ACTION_SPECIFICS[action].actionTag);
+              return_code = actions_buildCarServerVehicleActionMessage (static_cast<int32_t>(param), static_message_buffer_, &message_length, ACTION_SPECIFICS[action].actionTag);
               if ((action == SET_CHARGING_SWITCH) and (param == 1))
               { // If charging has been requested, enable continuous polling
                 car_is_charging_ = 1;

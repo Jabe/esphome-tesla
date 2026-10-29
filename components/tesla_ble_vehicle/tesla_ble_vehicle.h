@@ -224,6 +224,7 @@ namespace esphome
             UniversalMessage_RoutableMessage read_queue_message_;
             CarServer_Response static_carserver_response_;
             unsigned char static_message_buffer_[UniversalMessage_RoutableMessage_size];
+            CarServer_Action actions_action_message_;
             //BLETXChunk static_tx_chunk_;
             //BLERXChunk static_rx_chunk_;
 
@@ -263,6 +264,8 @@ namespace esphome
             int sendVCSECActionMessage(VCSEC_RKEAction_E action);
             int sendVCSECClosureMoveRequestMessage (int moveWhat, VCSEC_ClosureMoveType_E moveType);
             int sendCarServerVehicleActionMessage(BLE_CarServer_VehicleAction action, int param);
+            int actions_buildCarServerGetVehicleDataMessage(pb_byte_t *output_buffer, size_t *output_length, int which_get);
+            int actions_buildCarServerVehicleActionMessage(int32_t set_value, pb_byte_t *output_buffer, size_t *output_length, int which_tag);
             int sendSessionInfoRequest(UniversalMessage_Domain domain);
             int sendVCSECInformationRequest(void);
             void enqueueVCSECInformationRequest(bool force = false);

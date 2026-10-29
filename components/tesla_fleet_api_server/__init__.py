@@ -12,6 +12,12 @@ try:
 except ImportError:  # pragma: no cover - older ESPHome versions
     CONF_VIN = "vin"
 
+try:
+    from esphome.components.esp32 import include_builtin_idf_component
+except ImportError:  # pragma: no cover - older ESPHome versions
+    def include_builtin_idf_component(name):
+        pass  # nothing is excluded from the IDF build there
+
 from ..tesla_ble_vehicle import TeslaBLEVehicle
 
 CODEOWNERS = ["@Jabe"]
@@ -34,6 +40,9 @@ CONFIG_SCHEMA = cv.Schema(
 
 
 async def to_code(config):
+    # ESPHome >= 2026.9 excludes esp_http_server from the IDF build by default.
+    include_builtin_idf_component("esp_http_server")
+
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
 

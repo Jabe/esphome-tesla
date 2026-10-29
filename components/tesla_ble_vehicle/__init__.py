@@ -1,6 +1,6 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
-from esphome.components import ble_client, binary_sensor, text_sensor, sensor
+from esphome.components import ble_client, binary_sensor, esp32, text_sensor, sensor
 from esphome.const import CONF_ID
 
 CODEOWNERS = ["@Jabe"]
@@ -190,6 +190,12 @@ async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
     await ble_client.register_ble_node(var, config)
+
+    # TeslaBLE does ECDH outside TLS and stores its private key as PEM. ESPHome
+    # >= 2026.10 trims mbedTLS (PEM write, ECP) when no component requests TLS.
+    esp32.add_idf_sdkconfig_option("CONFIG_MBEDTLS_ECP_C", True)
+    esp32.add_idf_sdkconfig_option("CONFIG_MBEDTLS_PEM_WRITE_C", True)
+    esp32.add_idf_sdkconfig_option("CONFIG_MBEDTLS_PEM_PARSE_C", True)
 
     cg.add(var.set_vin(config[CONF_VIN]))
     cg.add(var.load_polling_parameters(config[CONF_POST_WAKE_POLL_TIME], config[CONF_POLL_DATA_PERIOD],
