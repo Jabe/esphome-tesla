@@ -719,13 +719,13 @@ esp_err_t TeslaFleetAPIServer::send_method_not_allowed(httpd_req_t *req) {
   return this->send_json(req, "{\"error\":\"method_not_allowed\"}");
 }
 
-esp_err_t TeslaFleetAPIServer::handle_command_result(httpd_req_t *req, int result, const char *default_reason) {
-  bool ok = (result == 0);
-  if (!ok) {
-    httpd_resp_set_status(req, "500 Internal Server Error");
-  }
-  std::string reason = ok ? "" : (default_reason != nullptr ? default_reason : "failed");
-  return this->send_json(req, this->build_command_response_json(ok, reason));
+esp_err_t TeslaFleetAPIServer::queue_command(httpd_req_t *req, std::function<void()> &&command) {
+  // Handlers run in the httpd task, but the vehicle's command queue belongs to the main loop: calling into the vehicle
+  // from here raced loop() on that queue. defer() hands the call over thread-safely (as ESPHome's web_server does).
+  // The vehicle calls only queue the command and fail only on invalid arguments, which no handler passes, so the
+  // request is answered right away.
+  this->defer(std::move(command));
+  return this->send_json(req, this->build_command_response_json(true));
 }
 
 TeslaFleetAPIServer *TeslaFleetAPIServer::from_request(httpd_req_t *req) {
@@ -1058,8 +1058,7 @@ esp_err_t TeslaFleetAPIServer::handle_post_charge_start(httpd_req_t *req) {
   if (!self->ensure_vehicle_available(req)) {
     return ESP_OK;
   }
-  int result = self->vehicle_->sendCarServerVehicleActionMessage(SET_CHARGING_SWITCH, 1);
-  return self->handle_command_result(req, result, "charge_start_failed");
+  return self->queue_command(req, [=]() { self->vehicle_->sendCarServerVehicleActionMessage(SET_CHARGING_SWITCH, 1); });
 }
 
 esp_err_t TeslaFleetAPIServer::handle_post_charge_stop(httpd_req_t *req) {
@@ -1073,8 +1072,7 @@ esp_err_t TeslaFleetAPIServer::handle_post_charge_stop(httpd_req_t *req) {
   if (!self->ensure_vehicle_available(req)) {
     return ESP_OK;
   }
-  int result = self->vehicle_->sendCarServerVehicleActionMessage(SET_CHARGING_SWITCH, 0);
-  return self->handle_command_result(req, result, "charge_stop_failed");
+  return self->queue_command(req, [=]() { self->vehicle_->sendCarServerVehicleActionMessage(SET_CHARGING_SWITCH, 0); });
 }
 
 esp_err_t TeslaFleetAPIServer::handle_post_set_amps(httpd_req_t *req) {
@@ -1102,8 +1100,7 @@ esp_err_t TeslaFleetAPIServer::handle_post_set_amps(httpd_req_t *req) {
     return self->send_json(req, "{\"error\":\"invalid_charging_amps\"}");
   }
 
-  int result = self->vehicle_->sendCarServerVehicleActionMessage(SET_CHARGING_AMPS, amps);
-  return self->handle_command_result(req, result, "set_charging_amps_failed");
+  return self->queue_command(req, [=]() { self->vehicle_->sendCarServerVehicleActionMessage(SET_CHARGING_AMPS, amps); });
 }
 
 esp_err_t TeslaFleetAPIServer::handle_post_climate_start(httpd_req_t *req) {
@@ -1117,8 +1114,7 @@ esp_err_t TeslaFleetAPIServer::handle_post_climate_start(httpd_req_t *req) {
   if (!self->ensure_vehicle_available(req)) {
     return ESP_OK;
   }
-  int result = self->vehicle_->sendCarServerVehicleActionMessage(SET_HVAC_SWITCH, 1);
-  return self->handle_command_result(req, result, "climate_start_failed");
+  return self->queue_command(req, [=]() { self->vehicle_->sendCarServerVehicleActionMessage(SET_HVAC_SWITCH, 1); });
 }
 
 esp_err_t TeslaFleetAPIServer::handle_post_climate_stop(httpd_req_t *req) {
@@ -1132,8 +1128,7 @@ esp_err_t TeslaFleetAPIServer::handle_post_climate_stop(httpd_req_t *req) {
   if (!self->ensure_vehicle_available(req)) {
     return ESP_OK;
   }
-  int result = self->vehicle_->sendCarServerVehicleActionMessage(SET_HVAC_SWITCH, 0);
-  return self->handle_command_result(req, result, "climate_stop_failed");
+  return self->queue_command(req, [=]() { self->vehicle_->sendCarServerVehicleActionMessage(SET_HVAC_SWITCH, 0); });
 }
 
 esp_err_t TeslaFleetAPIServer::handle_post_wake_up(httpd_req_t *req) {
@@ -1147,8 +1142,7 @@ esp_err_t TeslaFleetAPIServer::handle_post_wake_up(httpd_req_t *req) {
   if (!self->ensure_vehicle_available(req)) {
     return ESP_OK;
   }
-  int result = self->vehicle_->wakeVehicle();
-  return self->handle_command_result(req, result, "wake_up_failed");
+  return self->queue_command(req, [=]() { self->vehicle_->wakeVehicle(); });
 }
 
 esp_err_t TeslaFleetAPIServer::handle_post_charge_port_open(httpd_req_t *req) {
@@ -1162,8 +1156,7 @@ esp_err_t TeslaFleetAPIServer::handle_post_charge_port_open(httpd_req_t *req) {
   if (!self->ensure_vehicle_available(req)) {
     return ESP_OK;
   }
-  int result = self->vehicle_->sendCarServerVehicleActionMessage(SET_OPEN_CHARGE_PORT_DOOR, 1);
-  return self->handle_command_result(req, result, "charge_port_door_open_failed");
+  return self->queue_command(req, [=]() { self->vehicle_->sendCarServerVehicleActionMessage(SET_OPEN_CHARGE_PORT_DOOR, 1); });
 }
 
 esp_err_t TeslaFleetAPIServer::handle_post_charge_port_close(httpd_req_t *req) {
@@ -1177,8 +1170,7 @@ esp_err_t TeslaFleetAPIServer::handle_post_charge_port_close(httpd_req_t *req) {
   if (!self->ensure_vehicle_available(req)) {
     return ESP_OK;
   }
-  int result = self->vehicle_->sendCarServerVehicleActionMessage(SET_CLOSE_CHARGE_PORT_DOOR, 1);
-  return self->handle_command_result(req, result, "charge_port_door_close_failed");
+  return self->queue_command(req, [=]() { self->vehicle_->sendCarServerVehicleActionMessage(SET_CLOSE_CHARGE_PORT_DOOR, 1); });
 }
 
 esp_err_t TeslaFleetAPIServer::handle_post_flash_lights(httpd_req_t *req) {
@@ -1192,8 +1184,7 @@ esp_err_t TeslaFleetAPIServer::handle_post_flash_lights(httpd_req_t *req) {
   if (!self->ensure_vehicle_available(req)) {
     return ESP_OK;
   }
-  int result = self->vehicle_->sendCarServerVehicleActionMessage(FLASH_LIGHT, 0);
-  return self->handle_command_result(req, result, "flash_lights_failed");
+  return self->queue_command(req, [=]() { self->vehicle_->sendCarServerVehicleActionMessage(FLASH_LIGHT, 0); });
 }
 
 esp_err_t TeslaFleetAPIServer::handle_post_honk_horn(httpd_req_t *req) {
@@ -1207,8 +1198,7 @@ esp_err_t TeslaFleetAPIServer::handle_post_honk_horn(httpd_req_t *req) {
   if (!self->ensure_vehicle_available(req)) {
     return ESP_OK;
   }
-  int result = self->vehicle_->sendCarServerVehicleActionMessage(SOUND_HORN, 0);
-  return self->handle_command_result(req, result, "honk_horn_failed");
+  return self->queue_command(req, [=]() { self->vehicle_->sendCarServerVehicleActionMessage(SOUND_HORN, 0); });
 }
 
 esp_err_t TeslaFleetAPIServer::handle_post_door_lock(httpd_req_t *req) {
@@ -1222,8 +1212,7 @@ esp_err_t TeslaFleetAPIServer::handle_post_door_lock(httpd_req_t *req) {
   if (!self->ensure_vehicle_available(req)) {
     return ESP_OK;
   }
-  int result = self->vehicle_->lockVehicle(VCSEC_RKEAction_E_RKE_ACTION_LOCK);
-  return self->handle_command_result(req, result, "door_lock_failed");
+  return self->queue_command(req, [=]() { self->vehicle_->lockVehicle(VCSEC_RKEAction_E_RKE_ACTION_LOCK); });
 }
 
 esp_err_t TeslaFleetAPIServer::handle_post_door_unlock(httpd_req_t *req) {
@@ -1237,8 +1226,7 @@ esp_err_t TeslaFleetAPIServer::handle_post_door_unlock(httpd_req_t *req) {
   if (!self->ensure_vehicle_available(req)) {
     return ESP_OK;
   }
-  int result = self->vehicle_->lockVehicle(VCSEC_RKEAction_E_RKE_ACTION_UNLOCK);
-  return self->handle_command_result(req, result, "door_unlock_failed");
+  return self->queue_command(req, [=]() { self->vehicle_->lockVehicle(VCSEC_RKEAction_E_RKE_ACTION_UNLOCK); });
 }
 
 esp_err_t TeslaFleetAPIServer::handle_post_set_charge_limit(httpd_req_t *req) {
@@ -1262,8 +1250,7 @@ esp_err_t TeslaFleetAPIServer::handle_post_set_charge_limit(httpd_req_t *req) {
     httpd_resp_set_status(req, "400 Bad Request");
     return self->send_json(req, "{\"error\":\"invalid_charge_limit\"}");
   }
-  int result = self->vehicle_->sendCarServerVehicleActionMessage(SET_CHARGING_LIMIT, percent);
-  return self->handle_command_result(req, result, "set_charge_limit_failed");
+  return self->queue_command(req, [=]() { self->vehicle_->sendCarServerVehicleActionMessage(SET_CHARGING_LIMIT, percent); });
 }
 
 esp_err_t TeslaFleetAPIServer::handle_post_set_sentry_mode(httpd_req_t *req) {
@@ -1283,8 +1270,7 @@ esp_err_t TeslaFleetAPIServer::handle_post_set_sentry_mode(httpd_req_t *req) {
     httpd_resp_set_status(req, "400 Bad Request");
     return self->send_json(req, "{\"error\":\"missing_sentry_mode_state\"}");
   }
-  int result = self->vehicle_->sendCarServerVehicleActionMessage(SET_SENTRY_SWITCH, enable ? 1 : 0);
-  return self->handle_command_result(req, result, "set_sentry_mode_failed");
+  return self->queue_command(req, [=]() { self->vehicle_->sendCarServerVehicleActionMessage(SET_SENTRY_SWITCH, enable ? 1 : 0); });
 }
 
 TeslaFleetAPIServer::~TeslaFleetAPIServer() {

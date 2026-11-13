@@ -3,6 +3,7 @@
 #include <esp_http_server.h>
 
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -61,7 +62,7 @@ class TeslaFleetAPIServer : public Component {
   esp_err_t send_json(httpd_req_t *req, const std::string &payload);
   esp_err_t send_not_found(httpd_req_t *req);
   esp_err_t send_method_not_allowed(httpd_req_t *req);
-  esp_err_t handle_command_result(httpd_req_t *req, int result, const char *default_reason);
+  esp_err_t queue_command(httpd_req_t *req, std::function<void()> &&command);
   static TeslaFleetAPIServer *from_request(httpd_req_t *req);
 
   bool parse_int_field(const std::string &body, const std::vector<std::string> &keys, int *value);
