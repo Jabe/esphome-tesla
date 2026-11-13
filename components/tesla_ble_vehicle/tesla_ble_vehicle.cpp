@@ -298,6 +298,7 @@ namespace esphome
               {
                 ESP_LOGE(TAG, "[%s] Failed to send wake command", current_command.execute_name.c_str());
               }
+              current_command.done_times = 0; // Status poll still due
             }
             else
             {
@@ -306,6 +307,7 @@ namespace esphome
               {
                 ESP_LOGE(TAG, "[%s] Failed to send VCSECInformationRequest", current_command.execute_name.c_str());
               }
+              current_command.done_times = 1; // Just asked for the status
             }
             current_command.last_tx_at = now;
             current_command.retry_count++;
@@ -318,6 +320,22 @@ namespace esphome
               return;
             }
           }
+        }
+        else if ((current_command.domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY) &&
+                 (current_command.done_times == 0) && ((now - current_command.last_tx_at) > RETRY_INTERVAL))
+        {
+          /*
+          *   "wake vehicle" also asks for the sleep status a second after each wake command: the car usually reports awake
+          *   well before MAX_LATENCY, and a command queued behind the wake (e.g. a closure move) shouldn't sit that out.
+          *   INFOTAINMENT commands keep waiting the full MAX_LATENCY, which gives the infotainment time to come up.
+          */
+          ESP_LOGD(TAG, "[%s] Polling for wake response..", current_command.execute_name.c_str());
+          int result = this->sendVCSECInformationRequest();
+          if (result != 0)
+          {
+            ESP_LOGE(TAG, "[%s] Failed to send VCSECInformationRequest", current_command.execute_name.c_str());
+          }
+          current_command.done_times = 1;
         }
         break;
       case BLECommandState::WAITING_FOR_LOCK_RESPONSE:
@@ -393,6 +411,7 @@ namespace esphome
               if (strcmp(current_command.execute_name.c_str(), "wake vehicle") == 0)
               {
                 current_command.state = BLECommandState::WAITING_FOR_WAKE_RESPONSE;
+                current_command.done_times = 0; // Status poll due
               }
               else if ((strcmp(current_command.execute_name.c_str(), "unlock vehicle") == 0) or
                        (strcmp(current_command.execute_name.c_str(), "lock vehicle") == 0))
@@ -692,6 +711,15 @@ namespace esphome
                 if (current_command.state == BLECommandState::WAITING_FOR_RESPONSE)
                 {
                   ESP_LOGI(TAG, "[%s] Received vehicle status, command completed", current_command.execute_name.c_str());
+                  command_queue_.pop();
+                  return;
+                }
+                // Only "wake vehicle" waits for the wake in this domain: done as soon as the car says so, so that a
+                // command queued behind it runs right away instead of after the next MAX_LATENCY tick
+                if ((current_command.state == BLECommandState::WAITING_FOR_WAKE_RESPONSE) &&
+                    (vcsec_message.sub_message.vehicleStatus.vehicleSleepStatus == VCSEC_VehicleSleepStatus_E_VEHICLE_SLEEP_STATUS_AWAKE))
+                {
+                  ESP_LOGI(TAG, "[%s] Received vehicle status, vehicle is awake, command completed", current_command.execute_name.c_str());
                   command_queue_.pop();
                   return;
                 }
@@ -1434,6 +1462,15 @@ namespace esphome
           return this->writeVCSECClosureMoveRequestMessage (moveWhat, moveType);
         },
         execute_name);
+      /*
+      *   On a sleeping car the move only woke it up: the actuator didn't run and the button had to be pressed again once
+      *   the car was awake. So wake it first - wakeVehicle() queues in front of the move, which then runs as soon as VCSEC
+      *   reports the car awake (or, should the wake fail, is sent anyway as before).
+      */
+      if (this->isAsleepSensor->state)
+      {
+        wakeVehicle();
+      }
       return 0;
     }
 
