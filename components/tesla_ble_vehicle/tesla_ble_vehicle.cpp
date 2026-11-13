@@ -23,6 +23,16 @@ namespace esphome
 {
   namespace tesla_ble_vehicle
   {
+    /*
+    *   READY resends a command once MAX_LATENCY has passed since its last_tx_at. Backdating last_tx_at makes that happen
+    *   delay_ms from now instead.
+    */
+    static void schedule_resend(BLECommand &command, uint32_t delay_ms)
+    {
+      command.last_tx_at = millis() - static_cast<uint32_t>(MAX_LATENCY + 1) + delay_ms;
+      command.state = BLECommandState::READY;
+    }
+
     void TeslaBLEVehicle::dump_config()
     {
       ESP_LOGCONFIG(TAG, "Tesla BLE Vehicle:");
@@ -338,6 +348,19 @@ namespace esphome
           current_command.state = BLECommandState::READY;
         }
         break;
+      case BLECommandState::WAITING_FOR_CLOSURE_RESPONSE:
+        /*
+        *   A closure move drives an actuator (charge port latch, trunk, door), so it is never resent just because no reply
+        *   was recognised: VCSEC's success reply isn't parsed here, only its rejections are, and those move the command on
+        *   before this fires (auth fault -> invalidateSession, WAIT/ERROR -> READY). Silence means the car accepted it.
+        */
+        if ((now - current_command.last_tx_at) > MAX_LATENCY)
+        {
+          ESP_LOGI (TAG, "[%s] No rejection from the vehicle, command completed", current_command.execute_name.c_str());
+          command_queue_.pop();
+          return;
+        }
+        break;
       case BLECommandState::WAITING_FOR_INFOTAINMENT_AUTH_RESPONSE:
         if (now - current_command.last_tx_at > MAX_LATENCY)
         {
@@ -376,6 +399,10 @@ namespace esphome
               {
                 current_command.state = BLECommandState::WAITING_FOR_LOCK_RESPONSE;
                 current_command.done_times = 0;
+              }
+              else if (current_command.execute_name.rfind(CLOSURE_COMMAND_PREFIX, 0) == 0)
+              {
+                current_command.state = BLECommandState::WAITING_FOR_CLOSURE_RESPONSE;
               }
               else
               {
@@ -607,6 +634,14 @@ namespace esphome
         else if (read_queue_message_.signedMessageStatus.operation_status == UniversalMessage_OperationStatus_E_OPERATIONSTATUS_WAIT)
         {
           ESP_LOGI(TAG, "Received wait message from domain %s", domain_to_string(read_queue_message_.from_destination.sub_destination.domain));
+          // A closure move would otherwise count this as success once MAX_LATENCY passes without a rejection
+          if ((read_queue_message_.from_destination.sub_destination.domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY) &&
+              !command_queue_.empty() &&
+              (command_queue_.front().state == BLECommandState::WAITING_FOR_CLOSURE_RESPONSE))
+          {
+            ESP_LOGW(TAG, "[%s] Vehicle busy, resending command..", command_queue_.front().execute_name.c_str());
+            schedule_resend(command_queue_.front(), RETRY_INTERVAL);
+          }
           return;
         }
         else
@@ -733,7 +768,8 @@ namespace esphome
                 switch (vcsec_message.sub_message.commandStatus.operationStatus)
                 {
                 case VCSEC_OperationStatus_E_OPERATIONSTATUS_OK:
-                  if (current_command.state == BLECommandState::WAITING_FOR_RESPONSE)
+                  if ((current_command.state == BLECommandState::WAITING_FOR_RESPONSE) ||
+                      (current_command.state == BLECommandState::WAITING_FOR_CLOSURE_RESPONSE))
                   {
                     ESP_LOGI(TAG, "[%s] Received VCSEC OK message, command completed", current_command.execute_name.c_str());
                     command_queue_.pop();
@@ -747,12 +783,21 @@ namespace esphome
                     current_command.last_tx_at = millis();
                     current_command.state = BLECommandState::READY;
                   }
+                  else if (current_command.state == BLECommandState::WAITING_FOR_CLOSURE_RESPONSE)
+                  {
+                    ESP_LOGW(TAG, "[%s] Received VCSEC WAIT message, resending command..", current_command.execute_name.c_str());
+                    schedule_resend(current_command, RETRY_INTERVAL);
+                  }
                   break;
                 case VCSEC_OperationStatus_E_OPERATIONSTATUS_ERROR:
                   ESP_LOGW(TAG, "[%s] Received VCSEC ERROR message, retrying command..", current_command.execute_name.c_str());
                   if (current_command.state == BLECommandState::WAITING_FOR_RESPONSE)
                   {
                     current_command.state = BLECommandState::READY;
+                  }
+                  else if (current_command.state == BLECommandState::WAITING_FOR_CLOSURE_RESPONSE)
+                  {
+                    schedule_resend(current_command, RETRY_INTERVAL);
                   }
                   break;
                 }
@@ -1347,8 +1392,54 @@ namespace esphome
     }
 
     int TeslaBLEVehicle::sendVCSECClosureMoveRequestMessage (int moveWhat, VCSEC_ClosureMoveType_E moveType)
+    /*
+    *   Queues a ClosureMoveRequest (charge port latch, trunks, driver door) instead of writing it to BLE straight away.
+    *   It is signed with the cached VCSEC session, which goes stale unnoticed because the periodic VCSEC status poll is
+    *   unsigned. The car rejects the first signed command after that (e.g. ERROR_INCORRECT_EPOCH) and sends fresh session
+    *   info along; only a queued command is then resent with it. Sent directly, it was lost and had to be sent again.
+    */
     {
-      ESP_LOGD(TAG, "Building sendVCSECClosureMoveRequestMessage");
+      const char *what;
+      switch (moveWhat)
+      {
+        case VCSEC_ClosureMoveRequest_rearTrunk_tag:       what = "rearTrunk"; break;
+        case VCSEC_ClosureMoveRequest_frontTrunk_tag:      what = "frontTrunk"; break;
+        case VCSEC_ClosureMoveRequest_chargePort_tag:      what = "chargePort"; break;
+        case VCSEC_ClosureMoveRequest_frontDriverDoor_tag: what = "frontDriverDoor"; break;
+        default:
+          ESP_LOGE (TAG, "Unhandled moveWhat requested %d", moveWhat);
+          return 1;
+      }
+      const char *how;
+      switch (moveType)
+      {
+        case VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_MOVE:  how = "move"; break;
+        case VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_STOP:  how = "stop"; break;
+        case VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_OPEN:  how = "open"; break;
+        case VCSEC_ClosureMoveType_E_CLOSURE_MOVE_TYPE_CLOSE: how = "close"; break;
+        default:                                              how = "none"; break;
+      }
+      std::string execute_name = std::string (CLOSURE_COMMAND_PREFIX) + what + " " + how;
+
+      // A second press while the first is still pending would move the actuator twice
+      if (isCommandQueued (execute_name))
+      {
+        ESP_LOGI (TAG, "[%s] Already queued, ignoring repeated request", execute_name.c_str());
+        return 0;
+      }
+      ESP_LOGI (TAG, "[%s] Adding command to queue", execute_name.c_str());
+      placeAtFrontOfQueue (UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY,
+        [this, moveWhat, moveType]()
+        {
+          return this->writeVCSECClosureMoveRequestMessage (moveWhat, moveType);
+        },
+        execute_name);
+      return 0;
+    }
+
+    int TeslaBLEVehicle::writeVCSECClosureMoveRequestMessage (int moveWhat, VCSEC_ClosureMoveType_E moveType)
+    {
+      ESP_LOGD(TAG, "Building ClosureMoveRequest message");
       size_t action_message_buffer_length = 0;
       VCSEC_ClosureMoveRequest closureMoveRequest = VCSEC_ClosureMoveRequest_init_default; // initialise to do nothing on all
       switch (moveWhat)
@@ -1427,6 +1518,24 @@ namespace esphome
           command_queue_.push (moving_command); // ... and push to the back
         }
       }
+    }
+
+    bool TeslaBLEVehicle::isCommandQueued (const std::string &execute_name)
+    /*
+    *   std::queue can't be searched, so cycle it once completely: every command goes from the front to the back, which
+    *   leaves the order (and any in-progress state of the front command) exactly as it was.
+    */
+    {
+      bool found = false;
+      size_t count = command_queue_.size();
+      for (size_t i = 0; i < count; i++)
+      {
+        BLECommand moving_command = std::move (command_queue_.front());
+        command_queue_.pop();
+        found = found || (moving_command.execute_name == execute_name);
+        command_queue_.push (std::move (moving_command));
+      }
+      return found;
     }
 
     int TeslaBLEVehicle::wakeVehicle()
@@ -1679,6 +1788,18 @@ namespace esphome
             command_queue_.pop();
             return 0;
           }
+        }
+        else if ((domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY) &&
+                 (current_command.domain == UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY) &&
+                 (current_command.state == BLECommandState::WAITING_FOR_VCSEC_AUTH))
+        {
+          /*
+          *   The car sent this session info along with its rejection of the command (invalidateSession has just put it
+          *   here), so resend it now instead of waiting out MAX_LATENCY - by then the button gets pressed again.
+          *   retry_count is kept so that repeated rejections still give up.
+          */
+          ESP_LOGI(TAG, "[%s] VCSEC session refreshed, resending command..", current_command.execute_name.c_str());
+          schedule_resend(current_command, 0);
         }
         else if (domain == UniversalMessage_Domain_DOMAIN_INFOTAINMENT && current_command.state == BLECommandState::WAITING_FOR_INFOTAINMENT_AUTH_RESPONSE)
         {

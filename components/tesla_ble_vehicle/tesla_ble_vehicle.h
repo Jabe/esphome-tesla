@@ -135,6 +135,8 @@ namespace esphome
         static const int BLOCK_LENGTH = 20;           // BLE MTU is 23 bytes, so we need to split the message into chunks (20 bytes as in vehicle_command)
         static const int MAX_RETRIES = 5;             // Max number of retries for a command
         static const int COMMAND_TIMEOUT = 30 * 1000; // Overall timeout for a command (30s)
+        static const int RETRY_INTERVAL = 1 * 1000;   // Delay before resending a command the car rejected as busy (1s, as vehicle_command over BLE)
+        static const char *const CLOSURE_COMMAND_PREFIX = "closure "; // execute_name prefix of queued ClosureMoveRequests
 
         enum class BLECommandState
         {
@@ -146,6 +148,7 @@ namespace esphome
             WAITING_FOR_WAKE,
             WAITING_FOR_WAKE_RESPONSE,
             WAITING_FOR_LOCK_RESPONSE,
+            WAITING_FOR_CLOSURE_RESPONSE,
             READY,
             WAITING_FOR_RESPONSE,
             WAITING_FOR_GET_POST_SET
@@ -260,9 +263,11 @@ namespace esphome
             int wakeVehicle(void);
             int lockVehicle (VCSEC_RKEAction_E lock);
             void placeAtFrontOfQueue (UniversalMessage_Domain domain, std::function<int()> execute, std::string execute_name, BLE_CarServer_VehicleAction action = DO_NOTHING);
-    
+            bool isCommandQueued (const std::string &execute_name);
+
             int sendVCSECActionMessage(VCSEC_RKEAction_E action);
-            int sendVCSECClosureMoveRequestMessage (int moveWhat, VCSEC_ClosureMoveType_E moveType);
+            int sendVCSECClosureMoveRequestMessage (int moveWhat, VCSEC_ClosureMoveType_E moveType); // Queues it
+            int writeVCSECClosureMoveRequestMessage (int moveWhat, VCSEC_ClosureMoveType_E moveType); // Builds and writes it now
             int sendCarServerVehicleActionMessage(BLE_CarServer_VehicleAction action, int param);
             int actions_buildCarServerGetVehicleDataMessage(pb_byte_t *output_buffer, size_t *output_length, int which_get);
             int actions_buildCarServerVehicleActionMessage(int32_t set_value, pb_byte_t *output_buffer, size_t *output_length, int which_tag);
