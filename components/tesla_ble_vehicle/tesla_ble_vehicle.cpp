@@ -33,6 +33,11 @@ namespace esphome
       command.state = BLECommandState::READY;
     }
 
+    static bool is_closure_command(const BLECommand &command)
+    {
+      return command.execute_name.rfind(CLOSURE_COMMAND_PREFIX, 0) == 0;
+    }
+
     void TeslaBLEVehicle::dump_config()
     {
       ESP_LOGCONFIG(TAG, "Tesla BLE Vehicle:");
@@ -279,6 +284,11 @@ namespace esphome
               command_queue_.pop();
               return;
             }
+            else if (is_closure_command(current_command)) {
+              ESP_LOGI(TAG, "[%s] Vehicle is awake, sending command..", current_command.execute_name.c_str());
+              current_command.retry_count = 0;
+              schedule_resend(current_command, WAKE_SETTLE_TIME);
+            }
             else {
               ESP_LOGD(TAG, "[%s] Vehicle is awake, waiting for infotainment auth", current_command.execute_name.c_str());
               current_command.state = BLECommandState::WAITING_FOR_INFOTAINMENT_AUTH;
@@ -374,6 +384,17 @@ namespace esphome
         // Ready to send a command
         if (now - current_command.last_tx_at > MAX_LATENCY)
         {
+          /*
+          *   A sleeping car wakes up on a closure move but doesn't carry it out, and it doesn't reject it either, so the
+          *   command would count as done. Wake the car first and send the move once it is awake. The check sits here and
+          *   not in IDLE because a rejected wake (stale session) comes back through READY while the car is still asleep.
+          */
+          if (is_closure_command(current_command) && this->isAsleepSensor->state)
+          {
+            ESP_LOGI(TAG, "[%s] Car is asleep, waking it first..", current_command.execute_name.c_str());
+            current_command.state = BLECommandState::WAITING_FOR_WAKE;
+            break;
+          }
           current_command.retry_count++;
           if (current_command.retry_count > MAX_RETRIES)
           {
@@ -400,7 +421,7 @@ namespace esphome
                 current_command.state = BLECommandState::WAITING_FOR_LOCK_RESPONSE;
                 current_command.done_times = 0;
               }
-              else if (current_command.execute_name.rfind(CLOSURE_COMMAND_PREFIX, 0) == 0)
+              else if (is_closure_command(current_command))
               {
                 current_command.state = BLECommandState::WAITING_FOR_CLOSURE_RESPONSE;
               }
@@ -694,6 +715,16 @@ namespace esphome
                   ESP_LOGI(TAG, "[%s] Received vehicle status, command completed", current_command.execute_name.c_str());
                   command_queue_.pop();
                   return;
+                }
+                else if (is_closure_command(current_command) &&
+                         ((current_command.state == BLECommandState::WAITING_FOR_WAKE) ||
+                          (current_command.state == BLECommandState::WAITING_FOR_WAKE_RESPONSE)) &&
+                         (vcsec_message.sub_message.vehicleStatus.vehicleSleepStatus == VCSEC_VehicleSleepStatus_E_VEHICLE_SLEEP_STATUS_AWAKE))
+                {
+                  // The wake attempts used up retry_count, the move itself gets the full number of attempts
+                  ESP_LOGI(TAG, "[%s] Received vehicle status, vehicle is awake, sending command..", current_command.execute_name.c_str());
+                  current_command.retry_count = 0;
+                  schedule_resend(current_command, WAKE_SETTLE_TIME);
                 }
                 break;
               case UniversalMessage_Domain_DOMAIN_INFOTAINMENT:
