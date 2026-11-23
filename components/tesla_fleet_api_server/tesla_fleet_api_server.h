@@ -46,6 +46,7 @@ class TeslaFleetAPIServer : public Component {
   std::string build_charge_state_object();
   std::string build_charge_state_response();
   std::string build_climate_state_object();
+  std::string build_drive_state_object();
   std::string build_vehicle_data_response(const std::vector<std::string> &requested_endpoints = {});
   std::string build_body_controller_state_object();
   std::string build_body_controller_state_response();

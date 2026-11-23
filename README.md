@@ -210,7 +210,7 @@ With `features/fleet_api.yml`, the ESP mirrors a minimal Tesla Fleet API subset 
    - `GET /api/1/vehicles`, `.../vehicles/{id}`, `.../vehicle_state`, `.../charge_state`, `.../vehicle_data`
    - `POST .../command/charge_start`, `charge_stop`, `set_charging_amps`, HVAC start/stop, `wake_up`
 
-Responses stay minimal for the bundled `docs/evcc` provider.
+Responses stay minimal but cover the fields evcc's built-in `tesla-ble` vehicle template reads (point its `url`/`port` at the ESP, port `80`). While the car is asleep and nothing has been read from it yet (after a boot or BLE reconnect), `vehicle_data` answers `"result": false, "reason": "vehicle is sleeping"` like TeslaBleHttpProxy does.
 
 ## Hardware
 

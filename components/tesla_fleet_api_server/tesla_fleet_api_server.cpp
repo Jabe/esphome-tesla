@@ -471,6 +471,8 @@ std::string TeslaFleetAPIServer::build_charge_state_object() {
   append("charger_power", format_float_optional(charge_power, 0));
   append("charge_rate", "0");
   append("minutes_to_full_charge", format_float_optional(minutes_to_full, 0));
+  // evcc's tesla-ble template reads charge_amps; it is the car's charging_amps, same as charge_current_request here
+  append("charge_amps", format_float_optional(current_request_max, 0));
   append("charge_current_request", format_float_optional(current_request_max, 0));
   append("charge_current_request_max", format_float_optional(current_request_max, 0));
   append("charge_port_door_open", format_bool_optional(charge_port_open));
@@ -502,6 +504,9 @@ std::string TeslaFleetAPIServer::build_climate_state_object() {
   std::stringstream ss;
   ss << "{";
   ss << "\"is_auto_conditioning_on\":" << format_bool_optional(climate_on);
+  // The car's is_climate_on is all that is read over BLE; evcc's tesla-ble template reads is_preconditioning
+  ss << ",\"is_climate_on\":" << format_bool_optional(climate_on);
+  ss << ",\"is_preconditioning\":" << format_bool_optional(climate_on);
   if (this->vehicle_ != nullptr) {
     auto inside = this->vehicle_->get_inside_temperature();
     auto outside = this->vehicle_->get_outside_temperature();
@@ -512,7 +517,43 @@ std::string TeslaFleetAPIServer::build_climate_state_object() {
   return ss.str();
 }
 
+std::string TeslaFleetAPIServer::build_drive_state_object() {
+  // The Fleet API has the odometer in vehicle_state, TeslaBleHttpProxy (and so evcc's tesla-ble template) in drive_state
+  optional<float> odometer;
+  if (this->vehicle_ != nullptr) {
+    odometer = this->vehicle_->get_odometer();
+  }
+  std::stringstream ss;
+  ss << "{";
+  ss << "\"odometer\":" << format_float_optional(odometer, 2) << ",";
+  ss << "\"timestamp\":" << std::to_string(esp_timer_get_time() / 1000);
+  ss << "}";
+  return ss.str();
+}
+
 std::string TeslaFleetAPIServer::build_vehicle_data_response(const std::vector<std::string> &requested_endpoints) {
+  // Infotainment data is not polled while the car sleeps, so after a boot or a BLE reconnect there is none until it
+  // wakes. Say so the way TeslaBleHttpProxy does instead of answering with nulls a client can't convert. Values
+  // read before the car fell asleep are still served.
+  if (this->vehicle_ != nullptr) {
+    auto asleep = this->vehicle_->get_is_asleep();
+    if (asleep.has_value() && asleep.value() && !this->vehicle_->get_battery_level().has_value()) {
+      std::stringstream ss_asleep;
+      ss_asleep << "{\"response\":{";
+      ss_asleep << "\"result\":false,";
+      ss_asleep << "\"reason\":\"vehicle is sleeping\",";
+      if (!this->vin_.empty()) {
+        ss_asleep << "\"vin\":\"" << escape_json(this->vin_) << "\",";
+      } else {
+        ss_asleep << "\"vin\":null,";
+      }
+      ss_asleep << "\"command\":\"vehicle_data\",";
+      ss_asleep << "\"response\":{}";
+      ss_asleep << "}}";
+      return ss_asleep.str();
+    }
+  }
+
   auto contains_endpoint = [&](const std::string &name) {
     if (requested_endpoints.empty()) {
       return true;
@@ -549,6 +590,9 @@ std::string TeslaFleetAPIServer::build_vehicle_data_response(const std::vector<s
   }
   if (contains_endpoint("climate_state")) {
     append_section("climate_state", this->build_climate_state_object());
+  }
+  if (contains_endpoint("drive_state")) {
+    append_section("drive_state", this->build_drive_state_object());
   }
   ss_sections << "}";
 
