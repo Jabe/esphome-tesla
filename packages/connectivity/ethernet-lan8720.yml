@@ -16,3 +16,11 @@ ethernet:
     mode: ${clk_mode}
   phy_addr: ${phy_addr}
   power_pin: ${power_pin}
+
+# Without Wi-Fi the radio belongs to BLE alone, so scan the whole interval
+# instead of ESPHome's default 30ms window. Finds an arriving car sooner.
+# Must not exceed scan_parameters.interval (150ms in core/ble_tracker.yml);
+# if you change the interval, set this window to match.
+esp32_ble_tracker:
+  scan_parameters:
+    window: 150ms

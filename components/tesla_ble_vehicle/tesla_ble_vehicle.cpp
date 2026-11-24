@@ -2369,6 +2369,10 @@ namespace esphome
           break;
         }
         ESP_LOGD(TAG, "Loaded public key");
+
+        // Ask for the VCSEC status right away instead of waiting up to update_interval
+        // for the next update(). VCSEC answers without waking the car.
+        enqueueVCSECInformationRequest();
         break;
       }
 
