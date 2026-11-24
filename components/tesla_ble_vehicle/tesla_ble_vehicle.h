@@ -100,7 +100,7 @@ namespace esphome
         {
             {DO_NOTHING,                       "",                          Empty,                 0,                                                              Invalid,         0},
             {GET_CHARGE_STATE,                 "getChargeState",            GetVehicleDataMessage, CarServer_GetVehicleData_getChargeState_tag,                    Invalid,         1},
-            {GET_CLIMATE_STATE,                "getClimateState",           GetVehicleDataMessage, CarServer_GetVehicleData_getClimateState_tag,                   Invalid,         5},
+            {GET_CLIMATE_STATE,                "getClimateState",           GetVehicleDataMessage, CarServer_GetVehicleData_getClimateState_tag,                   Invalid,         1},
             {GET_DRIVE_STATE,                  "getDriveState",             GetVehicleDataMessage, CarServer_GetVehicleData_getDriveState_tag,                     Invalid,         1},
             {GET_LOCATION_STATE,               "getLocationState",          GetVehicleDataMessage, CarServer_GetVehicleData_getLocationState_tag,                  Invalid,         10},
             {GET_CLOSURES_STATE,               "getClosuresState",          GetVehicleDataMessage, CarServer_GetVehicleData_getClosuresState_tag,                  Invalid,         6},
