@@ -136,7 +136,7 @@ namespace esphome
         static const int MAX_RETRIES = 5;             // Max number of retries for a command
         static const int COMMAND_TIMEOUT = 30 * 1000; // Overall timeout for a command (30s)
         static const int RETRY_INTERVAL = 1 * 1000;   // Delay before resending a command the car rejected as busy (1s, as vehicle_command over BLE)
-        static const int WAKE_SETTLE_TIME = 2 * 1000; // Delay between the car reporting awake and sending a closure move (2s, a guess: not measured on a car)
+        static const int WAKE_SETTLE_TIME = 2 * 1000; // Delay between the car reporting awake and sending a closure move (2s, worked on one car, shorter untested)
         static const char *const CLOSURE_COMMAND_PREFIX = "closure "; // execute_name prefix of queued ClosureMoveRequests
 
         enum class BLECommandState
