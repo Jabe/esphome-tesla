@@ -1,0 +1,771 @@
+// https://github.com/platformio/platform-espressif32/issues/957
+// specifically set when compiling with ESP-IDF
+#ifdef ESP_PLATFORM
+#define MBEDTLS_CONFIG_FILE "mbedtls/esp_config.h"
+#endif
+
+#include <string>
+
+#include <chrono>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
+#include <iomanip>
+//#include <esphome/core/helpers.h>
+#include <mbedtls/ctr_drbg.h>
+#include <mbedtls/ecdh.h>
+#include <mbedtls/entropy.h>
+#include <mbedtls/error.h>
+#include <mbedtls/gcm.h>
+#include <mbedtls/pk.h>
+#include <mbedtls/sha1.h>
+#include <pb_decode.h>
+#include <pb_encode.h>
+#include <sstream>
+
+#ifdef ESP_PLATFORM
+#ifndef LOG_LOCAL_LEVEL
+#define LOG_LOCAL_LEVEL ESP_LOG_INFO // Enable info logging level (otherwise would be error)
+#endif
+#endif
+
+//#include "helpers.h"
+#include "car_server.pb.h"
+#include "client.h"
+#include "keys.pb.h"
+#include "universal_message.pb.h"
+#include "vcsec.pb.h"
+//#include "peer.h"
+#include "vehicle.pb.h"
+#include "tb_utils.h"
+#include "errors.h"
+//#define LOG_LOCAL_LEVEL ESP_LOG_INFO
+
+namespace TeslaBLE
+{
+  void Client::setVIN(const char *vin)
+  {
+    this->VIN = vin;
+  }
+  void Client::setConnectionID(const pb_byte_t *connection_id)
+  {
+    memcpy(this->connectionID, connection_id, 16);
+  }
+
+  template<typename T>
+  int decodeProtoBuffer (const pb_byte_t* data, size_t size,
+                         const pb_msgdesc_t* fields,
+                         T* output,
+                         const char* tag)
+  {
+      pb_istream_t stream = pb_istream_from_buffer(data, size);
+      if (!pb_decode(&stream, fields, output))
+      {
+          LOG_ERROR("[%s] Decode failed: %s", tag, PB_GET_ERROR(&stream));
+          return TeslaBLE_Status_E_ERROR_PB_DECODING;
+      }
+      if (stream.bytes_left != 0)
+      {
+          LOG_WARNING("[%s] %d extra bytes", tag, (int)stream.bytes_left);
+      }
+      return TeslaBLE_Status_E_OK;
+  }
+
+  /*
+   * This will create a new private key, public key
+   * and generates the key_id
+   *
+   * @return int result code 0 for successful
+   */
+  int Client::createPrivateKey()
+  {
+    mbedtls_entropy_context entropy_context;
+    mbedtls_entropy_init(&entropy_context);
+
+    // Use existing shared pointers, don't create new ones
+    mbedtls_pk_free(private_key_context_.get());
+    mbedtls_pk_init(private_key_context_.get());
+
+    mbedtls_ctr_drbg_free(drbg_context_.get());
+    mbedtls_ctr_drbg_init(drbg_context_.get());
+
+    int return_code = mbedtls_ctr_drbg_seed(drbg_context_.get(), mbedtls_entropy_func,
+                                            &entropy_context, nullptr, 0);
+    if (return_code != 0)
+    {
+      LOG_ERROR("Last error was: -0x%04x", (unsigned int)-return_code);
+      return TeslaBLE_Status_E_ERROR_INTERNAL;
+    }
+
+    return_code = mbedtls_pk_setup(
+        private_key_context_.get(),
+        mbedtls_pk_info_from_type((mbedtls_pk_type_t)MBEDTLS_PK_ECKEY));
+
+    if (return_code != 0)
+    {
+      LOG_ERROR("Last error was: -0x%04x", (unsigned int)-return_code);
+      return TeslaBLE_Status_E_ERROR_INTERNAL;
+    }
+
+    return_code = mbedtls_ecp_gen_key(
+        MBEDTLS_ECP_DP_SECP256R1, mbedtls_pk_ec(*private_key_context_.get()),
+        mbedtls_ctr_drbg_random, drbg_context_.get());
+
+    if (return_code != 0)
+    {
+      LOG_ERROR("Last error was: -0x%04x", (unsigned int)-return_code);
+      return TeslaBLE_Status_E_ERROR_INTERNAL;
+    }
+
+    return this->generatePublicKey();
+  }
+
+  int Client::loadPrivateKey(const uint8_t *private_key_buffer,
+                             size_t private_key_length)
+  {
+    mbedtls_entropy_context entropy_context;
+    mbedtls_entropy_init(&entropy_context);
+
+    // Use existing shared pointers, don't create new ones
+    mbedtls_pk_free(private_key_context_.get());
+    mbedtls_pk_init(private_key_context_.get());
+
+    mbedtls_ctr_drbg_free(drbg_context_.get());
+    mbedtls_ctr_drbg_init(drbg_context_.get());
+
+    int return_code = mbedtls_ctr_drbg_seed(drbg_context_.get(), mbedtls_entropy_func,
+                                            &entropy_context, nullptr, 0);
+    if (return_code != 0)
+    {
+      LOG_ERROR("Last error was: -0x%04x", (unsigned int)-return_code);
+      return TeslaBLE_Status_E_ERROR_INTERNAL;
+    }
+
+    pb_byte_t password[0];
+    return_code = mbedtls_pk_parse_key(
+        private_key_context_.get(), private_key_buffer, private_key_length,
+        password, 0, mbedtls_ctr_drbg_random, drbg_context_.get());
+
+    if (return_code != 0)
+    {
+      LOG_ERROR("Last error was: -0x%04x", (unsigned int)-return_code);
+      return TeslaBLE_Status_E_ERROR_INTERNAL;
+    }
+
+    session_vcsec_->setPrivateKeyContext(private_key_context_);
+    session_infotainment_->setPrivateKeyContext(private_key_context_);
+
+    return this->generatePublicKey();
+  }
+
+  int Client::getPrivateKey(pb_byte_t *output_buffer, size_t output_buffer_length, size_t *output_length)
+  {
+    int return_code = mbedtls_pk_write_key_pem(private_key_context_.get(), output_buffer, output_buffer_length);
+    if (return_code != 0)
+    {
+      LOG_ERROR("Failed to write private key");
+      return TeslaBLE_Status_E_ERROR_INTERNAL;
+    }
+    *output_length = strlen((char *)output_buffer) + 1;
+    return TeslaBLE_Status_E_OK;
+  }
+
+  int Client::getPublicKey(pb_byte_t *output_buffer, size_t output_buffer_length)
+  {
+    if (this->public_key_size_ <= output_buffer_length)
+    {
+      memcpy(output_buffer, this->public_key_, this->public_key_size_);
+      return this->public_key_size_;
+    }
+    return 0;
+  }
+
+  int Client::generatePublicKey()
+  {
+    int return_code = mbedtls_ecp_point_write_binary(
+        &mbedtls_pk_ec(*private_key_context_.get())->private_grp,
+        &mbedtls_pk_ec(*private_key_context_.get())->private_Q,
+        MBEDTLS_ECP_PF_UNCOMPRESSED, &this->public_key_size_, this->public_key_,
+        sizeof(this->public_key_));
+
+    if (return_code != 0)
+    {
+      LOG_ERROR("Last error was: -0x%04x", (unsigned int)-return_code);
+      return TeslaBLE_Status_E_ERROR_INTERNAL;
+    }
+    return this->GenerateKeyId();
+  }
+
+  int Client::GenerateKeyId()
+  {
+    pb_byte_t buffer[20];
+    int return_code = mbedtls_sha1(this->public_key_, this->public_key_size_, buffer);
+    if (return_code != 0)
+    {
+      LOG_ERROR("SHA1 KeyId hash error: -0x%04x", (unsigned int)-return_code);
+      return TeslaBLE_Status_E_ERROR_INTERNAL;
+    }
+
+    // we only need the first 4 bytes
+    memcpy(this->public_key_id_, buffer, 4);
+    return TeslaBLE_Status_E_OK;
+  }
+    /*
+   * This inserts the size of the message into the first two bytes of the message
+   *
+   * @param input_buffer_length Size of the input buffer
+   * @param output_buffer Pointer to the output buffer
+   * @param output_length Pointer to size_t that will store the written length
+   */
+  void Client::insertLength (size_t input_buffer_length,
+                             pb_byte_t* output_buffer,
+                             size_t* output_length)
+  {
+    output_buffer[0] = input_buffer_length >> 8;
+    output_buffer[1] = input_buffer_length & 0xFF;
+    *output_length = input_buffer_length + 2;
+    if (*output_length > UniversalMessage_RoutableMessage_size) {
+        LOG_ERROR ("[insertLength] Output length too long **********************: %zu", *output_length);
+    }
+  }
+
+  /*
+   * This will build the message need to whitelist
+   * the public key in the car.
+   * Beware that the car does not show any signs of that
+   * interaction before you tab your keyboard on the reader
+   *
+   * @param input_buffer Pointer to the input buffer
+   * @param input_buffer_length Size of the input buffer
+   * @param output_buffer Pointer to the output buffer
+   * @param output_length Pointer to size_t that will store the written length
+   * @return int result code 0 for successful
+   */
+  int Client::buildWhiteListMessage(Keys_Role role,
+                                    VCSEC_KeyFormFactor form_factor,
+                                    pb_byte_t *output_buffer,
+                                    size_t *output_length)
+  {
+    // printf("Building whitelist message\n");
+    if (!mbedtls_pk_can_do(this->private_key_context_.get(), MBEDTLS_PK_ECKEY))
+    {
+      LOG_ERROR("[buildWhiteListMessage] Private key is not initialized");
+      return TeslaBLE_Status_E_ERROR_PRIVATE_KEY_NOT_INITIALIZED;
+    }
+    unsigned_message_                   = VCSEC_UnsignedMessage_init_default;
+    unsigned_message_.which_sub_message = VCSEC_UnsignedMessage_WhitelistOperation_tag;
+    // Initialize WhitelistOperation before setting nested fields, otherwise the init_default assignment overwrites the PermissionChange data.
+    unsigned_message_.sub_message.WhitelistOperation                                                                      = VCSEC_WhitelistOperation_init_default;
+    unsigned_message_.sub_message.WhitelistOperation.has_metadataForKey                                                   = true;
+    unsigned_message_.sub_message.WhitelistOperation.metadataForKey.keyFormFactor                                         = form_factor;
+    unsigned_message_.sub_message.WhitelistOperation.which_sub_message                                                    = VCSEC_WhitelistOperation_addKeyToWhitelistAndAddPermissions_tag;
+    unsigned_message_.sub_message.WhitelistOperation.sub_message.addKeyToWhitelistAndAddPermissions                       = VCSEC_PermissionChange_init_default;
+    unsigned_message_.sub_message.WhitelistOperation.sub_message.addKeyToWhitelistAndAddPermissions.has_key               = true;
+    memcpy(unsigned_message_.sub_message.WhitelistOperation.sub_message.addKeyToWhitelistAndAddPermissions.key.PublicKeyRaw.bytes, this->public_key_, this->public_key_size_);
+    unsigned_message_.sub_message.WhitelistOperation.sub_message.addKeyToWhitelistAndAddPermissions.key.PublicKeyRaw.size = this->public_key_size_;
+    unsigned_message_.sub_message.WhitelistOperation.sub_message.addKeyToWhitelistAndAddPermissions.keyRole               = role;
+    // printf("Encoding whitelist message\n");
+    static pb_byte_t payload_buffer[VCSEC_UnsignedMessage_size];
+    size_t payload_length;
+    int return_code = pb_encode_fields(payload_buffer, &payload_length, VCSEC_UnsignedMessage_fields, &unsigned_message_);
+    if (return_code != 0)
+    {
+      LOG_ERROR("Failed to encode whitelist message");
+      return TeslaBLE_Status_E_ERROR_PB_ENCODING;
+    }
+    // printf("Building VCSEC to VCSEC message\n");
+    static VCSEC_ToVCSECMessage vcsec_message               = VCSEC_ToVCSECMessage_init_default;
+    vcsec_message.signedMessage                             = VCSEC_SignedMessage_init_default;
+    vcsec_message.has_signedMessage                         = true;
+    vcsec_message.signedMessage.signatureType               = VCSEC_SignatureType_SIGNATURE_TYPE_PRESENT_KEY;
+    memcpy(vcsec_message.signedMessage.protobufMessageAsBytes.bytes, payload_buffer, payload_length);
+    vcsec_message.signedMessage.protobufMessageAsBytes.size = payload_length;
+
+    size_t vcsec_encode_buffer_size;
+    return_code = pb_encode_fields(output_buffer+2, &vcsec_encode_buffer_size, VCSEC_ToVCSECMessage_fields, &vcsec_message);
+    if (return_code != 0)
+    {
+      LOG_ERROR("[buildWhiteListMessage] Failed to encode VCSEC to VCSEC message");
+      return TeslaBLE_Status_E_ERROR_PB_ENCODING;
+    }
+    this->insertLength(vcsec_encode_buffer_size, output_buffer, output_length);
+    return TeslaBLE_Status_E_OK;
+  }
+
+  /*
+   * This will parse the incoming message
+   *
+   * @param input_buffer Pointer to the input buffer
+   * @param input_buffer_length Size of the input buffer
+   * @param output_message Pointer to the output message
+   * @return int result code 0 for successful
+   */
+  int Client::parseFromVCSECMessage(const UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *input_buffer,
+                                    VCSEC_FromVCSECMessage *output_message)
+  {
+  return decodeProtoBuffer (input_buffer->bytes, input_buffer->size, VCSEC_FromVCSECMessage_fields, output_message, "parseFromVCSECMessage");
+  }
+
+  int Client::parseVCSECInformationRequest(const UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *input_buffer,
+                                           VCSEC_InformationRequest *output)
+  {
+    return decodeProtoBuffer (input_buffer->bytes, input_buffer->size, VCSEC_InformationRequest_fields, output, "parseVCSECInformationRequest");
+  }
+
+  /*
+   * This will parse the incoming message
+   *
+   * @param input_buffer Pointer to the input buffer
+   * @param input_buffer_length Size of the input buffer
+   * @param output_message Pointer to the output message
+   * @return int result code 0 for successful
+   */
+
+  int Client::parseUniversalMessage(pb_byte_t *input_buffer,
+                                    size_t input_buffer_length,
+                                    UniversalMessage_RoutableMessage *output)
+  {
+    LOG_INFO ("[parseUniversalMessage] Entering at version 2026.8.1 %s", TAG);
+    return decodeProtoBuffer (input_buffer, input_buffer_length, UniversalMessage_RoutableMessage_fields, output, "parseUniversalMessage");
+  }
+
+  int Client::parseUniversalMessageBLE(pb_byte_t *input_buffer,
+                                       size_t input_buffer_length,
+                                       UniversalMessage_RoutableMessage *output)
+  {
+    if (input_buffer_length < 2)
+    {
+      LOG_ERROR("[parseUniversalMessageBLE] BLE Message too short");
+      return TeslaBLE_Status_E_ERROR_PB_DECODING;
+    }
+    return parseUniversalMessage(input_buffer + 2, input_buffer_length - 2, output);
+  }
+
+  int Client::parsePayloadSessionInfo(const UniversalMessage_RoutableMessage_session_info_t *input_buffer,
+                                      Signatures_SessionInfo *output)
+  {
+    return decodeProtoBuffer (input_buffer->bytes, input_buffer->size, Signatures_SessionInfo_fields, output, "parsePayloadSessionInfo");
+  }
+/* Doesn't seem to be used
+  int Client::parsePayloadUnsignedMessage(UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *input_buffer,
+                                          VCSEC_UnsignedMessage *output)
+  {
+    pb_istream_t stream = pb_istream_from_buffer(input_buffer->bytes, input_buffer->size);
+    bool status = pb_decode(&stream, VCSEC_UnsignedMessage_fields, output);
+    if (!status)
+    {
+      LOG_ERROR("[parsePayloadUnsignedMessage] Decoding failed: %s", PB_GET_ERROR(&stream));
+      return TeslaBLE_Status_E_ERROR_PB_DECODING;
+    }
+
+    return 0;
+  }
+*/
+  int Client::parsePayloadCarServerResponse(const UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t *input_buffer,
+                                            Signatures_SignatureData *signature_data,
+                                            pb_size_t which_sub_sigData,
+                                            UniversalMessage_MessageFault_E signed_message_fault,
+                                            CarServer_Response *output)
+  {
+    // If encrypted, decrypt the payload
+    if (which_sub_sigData != 0)
+    {
+      switch (signature_data->which_sig_type)
+      {
+        case Signatures_SignatureData_AES_GCM_Response_data_tag:
+        {
+          LOG_DEBUG("AES_GCM_Response_data found in signature_data");
+          auto session = this->getPeer(UniversalMessage_Domain_DOMAIN_INFOTAINMENT);
+          if (!session->isInitialized())
+          {
+            LOG_ERROR("Session not initialized");
+            return TeslaBLE_Status_E_ERROR_INVALID_SESSION;
+          }
+          esp_log_level_set(TAG, ESP_LOG_INFO);
+          ESP_LOG_BUFFER_HEXDUMP (TAG, input_buffer->bytes, input_buffer->size, ESP_LOG_DEBUG);
+          static UniversalMessage_RoutableMessage_protobuf_message_as_bytes_t decrypt_buffer;
+          size_t decrypt_length;
+          int return_code = session->DecryptResponse(
+              input_buffer->bytes,
+              input_buffer->size,
+              signature_data->sig_type.AES_GCM_Response_data.nonce,
+              signature_data->sig_type.AES_GCM_Response_data.tag,
+              this->last_request_hash_,
+              this->last_request_hash_length_,
+              UniversalMessage_Flags_FLAG_ENCRYPT_RESPONSE,
+              signed_message_fault,
+              decrypt_buffer.bytes,
+              sizeof(decrypt_buffer.bytes),
+              &decrypt_length);
+          if (return_code != TeslaBLE_Status_E_OK)
+          {
+            LOG_ERROR("[parsePayloadCarServerResponse] Failed to decrypt response");
+            return TeslaBLE_Status_E_ERROR_DECRYPT;
+          }
+          // Set the size of the decrypted buffer
+          decrypt_buffer.size = decrypt_length;
+          ESP_LOG_BUFFER_HEXDUMP (TAG, decrypt_buffer.bytes, decrypt_buffer.size, ESP_LOG_DEBUG);
+          pb_istream_t stream = pb_istream_from_buffer(decrypt_buffer.bytes, decrypt_buffer.size);
+          if (!pb_decode(&stream, CarServer_Response_fields, output))
+          {
+            LOG_ERROR("[parsePayloadCarServerResponse-1] Decoding failed: %s", PB_GET_ERROR(&stream));
+            return TeslaBLE_Status_E_ERROR_PB_DECODING;
+          }
+          if (stream.bytes_left != 0)   // detect malformed messages
+          {
+            LOG_WARNING("[parsePayloadCarServerResponse-1] Decode warning: %d extra bytes remaining", (int)stream.bytes_left);
+          }
+          break;
+        }
+        default:
+          LOG_DEBUG("No AES_GCM_Response_data found in signature_data");
+          return TeslaBLE_Status_E_ERROR_DECRYPT;
+      }
+    }
+    else
+    {
+      return decodeProtoBuffer (input_buffer->bytes, input_buffer->size, CarServer_Response_fields, output, "parsePayloadCarServerResponse");
+    }
+    return TeslaBLE_Status_E_OK;
+  }
+
+  int Client::buildUniversalMessageWithPayload(const pb_byte_t *payload,
+                                               size_t payload_length,
+                                               UniversalMessage_Domain domain,
+                                               pb_byte_t *output_buffer,
+                                               size_t *output_length,
+                                               bool encryptPayload)
+  {
+    universal_message_                                       = UniversalMessage_RoutableMessage_init_default;
+    universal_message_.to_destination                        = UniversalMessage_Destination_init_default;
+    universal_message_.to_destination.which_sub_destination  = UniversalMessage_Destination_domain_tag;
+    universal_message_.to_destination.sub_destination.domain = domain;
+    universal_message_.has_to_destination                    = true;
+    LOG_DEBUG("Building message for domain: %d", domain);
+    auto session = this->getPeer(domain);
+    session->incrementCounter();
+    universal_message_.from_destination                                      = UniversalMessage_Destination_init_default;
+    universal_message_.from_destination.which_sub_destination                = UniversalMessage_Destination_routing_address_tag;
+    memcpy(universal_message_.from_destination.sub_destination.routing_address.bytes, this->connectionID, sizeof(this->connectionID));
+    universal_message_.from_destination.sub_destination.routing_address.size = sizeof(this->connectionID);
+    universal_message_.has_from_destination                                  = true;
+    universal_message_.which_payload                                         = UniversalMessage_RoutableMessage_protobuf_message_as_bytes_tag;
+    /*
+     * The flags field is a bit mask of `universal_message.Flags` values. Vehicles authenticate this value, but ignore unrecognized bits.
+     * Clients should always set the `FLAG_ENCRYPT_RESPONSE` bit which instructs vehicles with compatible firmware (2024.38+) to encrypt the response.
+     */
+    universal_message_.flags = (1 << UniversalMessage_Flags_FLAG_ENCRYPT_RESPONSE);
+
+    if (encryptPayload)
+    {
+      if (!session->isInitialized())
+      {
+        LOG_ERROR("Session not initialized");
+        return TeslaBLE_Status_E_ERROR_INVALID_SESSION;
+      }
+
+      pb_byte_t signature[16]; // AES-GCM tag
+      static pb_byte_t encrypted_payload[100];
+//std::array<uint8_t, UniversalMessage_RoutableMessage_size> encrypted_payload;
+      size_t encrypted_output_length = 0;
+      uint32_t expires_at = session->generateExpiresAt(5);
+      const pb_byte_t *epoch = session->getEpoch();
+
+      // Construct AD buffer for encryption
+      static pb_byte_t ad_buffer[56];
+      size_t ad_buffer_length = 0;
+      session->ConstructADBuffer(
+          Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
+          this->VIN,
+          expires_at,
+          ad_buffer,
+          &ad_buffer_length,
+          universal_message_.flags
+      );
+      // Generate nonce and encrypt payload
+      pb_byte_t nonce[12];
+      int return_code = session->Encrypt(
+          payload,
+          payload_length,
+          encrypted_payload,
+          sizeof(encrypted_payload),
+          &encrypted_output_length,
+          signature, // This will contain the AES-GCM tag
+          ad_buffer,
+          ad_buffer_length,
+          nonce);
+      if (return_code != TeslaBLE_Status_E_OK)
+      {
+        LOG_ERROR("Failed to encrypt payload");
+        return TeslaBLE_Status_E_ERROR_ENCRYPT;
+      }
+      // Set encrypted payload
+      memcpy(universal_message_.payload.protobuf_message_as_bytes.bytes, encrypted_payload, encrypted_output_length);
+      universal_message_.payload.protobuf_message_as_bytes.size = encrypted_output_length;
+      // Prepare signature data
+      // Set signer identity (public key)
+      universal_message_.sub_sigData.signature_data                                               = Signatures_SignatureData_init_default;
+      universal_message_.sub_sigData.signature_data.signer_identity                               = Signatures_KeyIdentity_init_default;
+      universal_message_.sub_sigData.signature_data.signer_identity.which_identity_type           = Signatures_KeyIdentity_public_key_tag;
+      memcpy(universal_message_.sub_sigData.signature_data.signer_identity.identity_type.public_key.bytes, this->public_key_, this->public_key_size_);
+      universal_message_.sub_sigData.signature_data.signer_identity.identity_type.public_key.size = this->public_key_size_;
+      universal_message_.sub_sigData.signature_data.has_signer_identity                           = true;
+      // Set AES-GCM signature data
+      universal_message_.sub_sigData.signature_data.which_sig_type                                = Signatures_SignatureData_AES_GCM_Personalized_data_tag;
+      universal_message_.sub_sigData.signature_data.sig_type.AES_GCM_Personalized_data.counter    = session->getCounter();
+      universal_message_.sub_sigData.signature_data.sig_type.AES_GCM_Personalized_data.expires_at = expires_at;
+      memcpy(universal_message_.sub_sigData.signature_data.sig_type.AES_GCM_Personalized_data.nonce, nonce, sizeof nonce);
+      memcpy(universal_message_.sub_sigData.signature_data.sig_type.AES_GCM_Personalized_data.epoch, epoch, 16);
+      memcpy(universal_message_.sub_sigData.signature_data.sig_type.AES_GCM_Personalized_data.tag, signature, sizeof signature);
+      // After storing the signature/tag, construct and store request hash for later use in decrypting responses
+      pb_byte_t request_hash[17]; // Max size: 1 byte type + 16 bytes tag
+      size_t request_hash_length;
+      return_code = session->ConstructRequestHash(
+          Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
+          signature, // The tag we just generated
+          sizeof(signature),
+          request_hash,
+          &request_hash_length);
+      if (return_code != TeslaBLE_Status_E_OK)
+      {
+          LOG_ERROR("Failed to construct request hash");
+          return return_code;
+      }
+      // Store the request hash for later use
+      memcpy(this->last_request_hash_, request_hash, request_hash_length);
+      this->last_request_hash_length_ = request_hash_length;
+      // Store the tag for later use in request hash construction
+      memcpy(this->last_request_tag_, signature, sizeof(signature));
+      this->last_request_type_ = Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED;
+      universal_message_.which_sub_sigData = UniversalMessage_RoutableMessage_signature_data_tag;
+    }
+    else
+    {
+      memcpy(universal_message_.payload.protobuf_message_as_bytes.bytes, payload, payload_length);
+      universal_message_.payload.protobuf_message_as_bytes.size = payload_length;
+    }
+    for (int i = 0; i < sizeof(universal_message_.uuid.bytes); i++)
+    {
+      universal_message_.uuid.bytes[i] = rand() % 256;
+    }
+    universal_message_.uuid.size = sizeof (universal_message_.uuid.bytes);
+    int rc = pb_encode_fields(output_buffer, output_length, UniversalMessage_RoutableMessage_fields, &universal_message_);
+    if (rc != 0)
+    {
+      LOG_ERROR("[buildUniversalMessageWithPayload] Failed to encode universal message");
+      return TeslaBLE_Status_E_ERROR_PB_ENCODING;
+    }
+    return TeslaBLE_Status_E_OK;
+  }
+
+  /*
+   * This build the message to ask the car for his
+   * ephemeral public key
+   *
+   * @param output_buffer Pointer to the output buffer
+   * @param output_length Size of the output buffer
+   * @return int result code 0 for successful
+   */
+  int Client::buildSessionInfoRequestMessage(UniversalMessage_Domain domain,
+                                             pb_byte_t *output_buffer,
+                                             size_t *output_length)
+  {
+    universal_message_                                        = UniversalMessage_RoutableMessage_init_default;
+    //Reuse destination rather than have different ones for from and to
+    universal_message_.to_destination                         = UniversalMessage_Destination_init_default;
+    universal_message_.to_destination.which_sub_destination   = UniversalMessage_Destination_domain_tag;
+    universal_message_.to_destination.sub_destination.domain  = domain;
+    universal_message_.has_to_destination                     = true;
+
+    universal_message_.from_destination                                      = UniversalMessage_Destination_init_default;
+    universal_message_.from_destination.which_sub_destination                = UniversalMessage_Destination_routing_address_tag;
+    memcpy(universal_message_.from_destination.sub_destination.routing_address.bytes, this->connectionID, sizeof(this->connectionID));
+    universal_message_.from_destination.sub_destination.routing_address.size = sizeof(this->connectionID);
+    universal_message_.has_from_destination                                  = true;
+
+    universal_message_.which_payload                                = UniversalMessage_RoutableMessage_session_info_request_tag;
+    universal_message_.payload.session_info_request                 = UniversalMessage_SessionInfoRequest_init_default;
+    memcpy(universal_message_.payload.session_info_request.public_key.bytes, this->public_key_, this->public_key_size_);
+    universal_message_.payload.session_info_request.public_key.size = this->public_key_size_;
+
+    // generate unique uuid for the request
+    // random 16 bytes using rand()
+    for (int i = 0; i < sizeof(universal_message_.uuid.bytes); i++)
+    {
+      universal_message_.uuid.bytes[i] = rand() % 256;
+    }
+    universal_message_.uuid.size = sizeof (universal_message_.uuid.bytes);
+    size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;
+    int rc = pb_encode_fields(output_buffer + 2, &universal_encode_buffer_size, UniversalMessage_RoutableMessage_fields, &universal_message_);
+    if (rc != 0)
+    {
+      LOG_ERROR("[buildSessionInfoRequest] Failed to encode universal message");
+      return TeslaBLE_Status_E_ERROR_PB_ENCODING;
+    }
+    this->insertLength(universal_encode_buffer_size, output_buffer, output_length);
+    return TeslaBLE_Status_E_OK;
+  }
+
+  /*
+   * This will build an unsigned message
+   *
+   * @param message Pointer to the message
+   * @param output_buffer Pointer to the output buffer
+   * @param output_length Size of the output buffer
+   * @return int result code 0 for successful
+   */
+  int Client::buildUnsignedMessagePayload(VCSEC_UnsignedMessage *message,
+                                          pb_byte_t *output_buffer,
+                                          size_t *output_length,
+                                          bool encryptPayload)
+  {
+    static pb_byte_t payload_buffer[VCSEC_UnsignedMessage_size];
+    size_t payload_length;
+    // printf("message: %p\n", message);
+    // printf("message.which_sub_message: %d\n", message->which_sub_message);
+    int return_code = pb_encode_fields(payload_buffer, &payload_length, VCSEC_UnsignedMessage_fields, message);
+    if (return_code != 0)
+    {
+      LOG_ERROR("[buildUnsignedMessagePayload] Failed to encode unsigned message");
+      return TeslaBLE_Status_E_ERROR_PB_ENCODING;
+    }
+    // build universal message
+    size_t ubuffer_size = UniversalMessage_RoutableMessage_size;
+    return_code = this->buildUniversalMessageWithPayload(payload_buffer, payload_length, UniversalMessage_Domain_DOMAIN_VEHICLE_SECURITY,
+                  output_buffer+2, &ubuffer_size, encryptPayload);
+    if (return_code != TeslaBLE_Status_E_OK)
+    {
+      LOG_ERROR("[buildUnsignedMessagePayload] Failed to buildUniversalMessageWithPayload");
+      return return_code;
+    }
+  	this->insertLength(ubuffer_size, output_buffer, output_length);
+    return TeslaBLE_Status_E_OK;
+  }
+
+  int Client::buildKeySummary(pb_byte_t *output_buffer,
+                              size_t *output_length)
+  {
+    unsigned_message_                                                       = VCSEC_UnsignedMessage_init_default;
+    unsigned_message_.which_sub_message                                     = VCSEC_UnsignedMessage_InformationRequest_tag;
+    unsigned_message_.sub_message.InformationRequest                        = VCSEC_InformationRequest_init_default;
+    unsigned_message_.sub_message.InformationRequest.informationRequestType = VCSEC_InformationRequestType_INFORMATION_REQUEST_TYPE_GET_WHITELIST_INFO;
+
+    int status = this->buildUnsignedMessagePayload (&unsigned_message_, output_buffer, output_length, false);
+    if (status != TeslaBLE_Status_E_OK)
+    {
+      LOG_ERROR("[buildKeySummary] Failed to build unsigned message\n");
+      return status;
+    }
+    return TeslaBLE_Status_E_OK;
+  }
+
+  int Client::buildCarServerActionPayload(CarServer_Action *action,
+                                          pb_byte_t *output_buffer,
+                                          size_t *output_length)
+  {
+    static pb_byte_t payload_buffer[UniversalMessage_RoutableMessage_size];
+    size_t payload_length = 0;
+    int return_code = pb_encode_fields(payload_buffer, &payload_length, CarServer_Action_fields, action);
+//    ESP_LOG_BUFFER_HEXDUMP (TAG, payload_buffer, payload_length, ESP_LOG_DEBUG);
+    if (return_code != 0)
+    {
+      LOG_ERROR("[buildCarServerActionPayload] Failed to encode car action message");
+      return TeslaBLE_Status_E_ERROR_PB_ENCODING;
+    }
+    // build universal message
+    size_t ubuffer_size = UniversalMessage_RoutableMessage_size;
+    return_code = this->buildUniversalMessageWithPayload(payload_buffer, payload_length, UniversalMessage_Domain_DOMAIN_INFOTAINMENT,
+                  output_buffer+2, &ubuffer_size, true);
+    if (return_code != TeslaBLE_Status_E_OK)
+    {
+      LOG_ERROR("[buildCarServerActionPayload] Failed to build car action message");       
+      return return_code;
+    }
+  	this->insertLength(ubuffer_size, output_buffer, output_length);
+    return TeslaBLE_Status_E_OK;
+  }
+
+  /*/
+   * This will build an carserver action message to for
+   * example open the trunk
+   *
+   * @param message Pointer to the message
+   * @param output_buffer Pointer to the output buffer
+   * @param output_length Size of the output buffer
+   * @return int result code 0 for successful
+   */
+
+  int Client::buildCarServerActionMessage(const CarServer_VehicleAction *vehicle_action,
+                                          pb_byte_t *output_buffer,
+                                          size_t *output_length)
+  {
+    action_message_                          = CarServer_Action_init_default;
+    action_message_.which_action_msg         = CarServer_Action_vehicleAction_tag;
+    action_message_.action_msg.vehicleAction = *vehicle_action;
+    int status = this->buildCarServerActionPayload(&action_message_, output_buffer, output_length);
+    if (status != TeslaBLE_Status_E_OK)
+    {
+      LOG_ERROR("Failed to build car action message");
+      return status;
+    }
+    return TeslaBLE_Status_E_OK;
+  }
+
+  int Client::buildVCSECActionMessage(const VCSEC_RKEAction_E action,
+                                      pb_byte_t *output_buffer,
+                                      size_t *output_length)
+  {
+    unsigned_message_                       = VCSEC_UnsignedMessage_init_default;
+    unsigned_message_.which_sub_message     = VCSEC_UnsignedMessage_RKEAction_tag;
+    unsigned_message_.sub_message.RKEAction = action;
+    int status = this->buildUnsignedMessagePayload (&unsigned_message_, output_buffer, output_length, true);
+    if (status != TeslaBLE_Status_E_OK)
+    {
+      LOG_ERROR("Failed to build unsigned message");
+      return status;
+    }
+    return TeslaBLE_Status_E_OK;
+  }
+
+  int Client::buildVCSECClosureMoveRequestMessage (const VCSEC_ClosureMoveRequest& request,
+                                                   pb_byte_t *output_buffer,
+                                                   size_t *output_length)
+  {
+    unsigned_message_                                = VCSEC_UnsignedMessage_init_default;
+    unsigned_message_.which_sub_message              = VCSEC_UnsignedMessage_closureMoveRequest_tag;
+    unsigned_message_.sub_message.closureMoveRequest = request;
+    int status = this->buildUnsignedMessagePayload (&unsigned_message_, output_buffer, output_length, true);
+    if (status != TeslaBLE_Status_E_OK)
+    {
+      LOG_ERROR("Failed to build unsigned message");
+      return status;
+    }
+    return TeslaBLE_Status_E_OK;
+  }
+
+  int Client::buildVCSECInformationRequestMessage(VCSEC_InformationRequestType request_type,
+                                                  pb_byte_t *output_buffer,
+                                                  size_t *output_length,
+                                                  uint32_t key_slot)
+  {
+    unsigned_message_                                                       = VCSEC_UnsignedMessage_init_default;
+    unsigned_message_.which_sub_message                                     = VCSEC_UnsignedMessage_InformationRequest_tag;
+    unsigned_message_.sub_message.InformationRequest                        = VCSEC_InformationRequest_init_zero;
+    unsigned_message_.sub_message.InformationRequest.informationRequestType = request_type;
+    if (key_slot != 0xFFFFFFFF)
+    {
+      // printf("Adding key slot info");
+      unsigned_message_.sub_message.InformationRequest.which_key = VCSEC_InformationRequest_slot_tag;
+      unsigned_message_.sub_message.InformationRequest.key.slot  = key_slot;
+    }
+    int status = this->buildUnsignedMessagePayload (&unsigned_message_, output_buffer, output_length, false);
+    if (status != TeslaBLE_Status_E_OK)
+    {
+      LOG_ERROR("Failed to build unsigned message");
+      return status;
+    }
+    return TeslaBLE_Status_E_OK;
+  }
+} // namespace TeslaBLE
+// #endif // MBEDTLS_CONFIG_FILE

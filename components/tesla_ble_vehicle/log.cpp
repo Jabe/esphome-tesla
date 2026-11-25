@@ -8,10 +8,10 @@
 #endif
 #include <esphome/core/log.h>
 
-#include <car_server.pb.h>
-#include <signatures.pb.h>
-#include <universal_message.pb.h>
-#include <vcsec.pb.h>
+#include "car_server.pb.h"
+#include "signatures.pb.h"
+#include "universal_message.pb.h"
+#include "vcsec.pb.h"
 
 using namespace esphome;
 

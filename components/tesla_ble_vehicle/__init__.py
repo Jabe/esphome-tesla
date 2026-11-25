@@ -191,6 +191,10 @@ async def to_code(config):
     await cg.register_component(var, config)
     await ble_client.register_ble_node(var, config)
 
+    # The TeslaBLE protocol sources live in this directory (see TESLABLE.md);
+    # Nanopb is their only external dependency.
+    cg.add_library("nanopb/Nanopb", "0.4.93")
+
     # TeslaBLE does ECDH outside TLS and stores its private key as PEM. ESPHome
     # >= 2026.10 trims mbedTLS (PEM write, ECP) when no component requests TLS.
     esp32.add_idf_sdkconfig_option("CONFIG_MBEDTLS_ECP_C", True)

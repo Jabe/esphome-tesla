@@ -7,7 +7,7 @@
 
 Control and monitor a Tesla over Bluetooth Low Energy from an ESP32, with native Home Assistant entities via ESPHome.
 
-This is the **Jabe** hard fork of the project ([Jabe/esphome-tesla](https://github.com/Jabe/esphome-tesla)). Historical origin: yoziru → community forks; BLE protocol library dependency remains [PedroKTFC/tesla-ble](https://github.com/PedroKTFC/tesla-ble). This tree is maintained independently with modular packages (Ethernet, Wi‑Fi, optional Fleet API).
+This is the **Jabe** hard fork of the project ([Jabe/esphome-tesla](https://github.com/Jabe/esphome-tesla)). Historical origin: yoziru → community forks; the BLE protocol library [PedroKTFC/tesla-ble](https://github.com/PedroKTFC/tesla-ble) is vendored in `components/tesla_ble_vehicle` (see [`TESLABLE.md`](./components/tesla_ble_vehicle/TESLABLE.md)). This tree is maintained independently with modular packages (Ethernet, Wi‑Fi, optional Fleet API).
 
 | Controls | Sensors-1 | Sensors-2| Diagnostic |
 | - | - | - | - |

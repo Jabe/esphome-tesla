@@ -34,13 +34,13 @@ FORBIDDEN_TOP_LEVEL_IN_BASE = re.compile(
 
 # Ownership branding: Pedro must not appear as project owner. Allowed:
 # - modern.md (design notes)
-# - packages/core/base.yml BLE_library dependency URL
+# - components/tesla_ble_vehicle/TESLABLE.md provenance of the vendored library
 # - one historical library credit line in README.md
 PEDRO_RE = re.compile(r"PedroKTFC|pedroktfc|\bPedro\b")
 
 ALLOWED_PEDRO_PATHS = {
     Path("modern.md"),
-    Path("packages/core/base.yml"),
+    Path("components/tesla_ble_vehicle/TESLABLE.md"),
     Path("README.md"),
     Path("tests/test_package_layout.py"),
 }
@@ -164,12 +164,8 @@ def test_no_pedro_ownership_branding() -> None:
             if not PEDRO_RE.search(line):
                 continue
             if rel in ALLOWED_PEDRO_PATHS:
-                # base: only library dependency URL
-                if rel == Path("packages/core/base.yml"):
-                    if "tesla-ble.git" not in line and "BLE_library" not in line:
-                        hits.append(f"{rel}:{i}:{line.strip()}")
                 # README: only the single historical library credit
-                elif rel == Path("README.md"):
+                if rel == Path("README.md"):
                     if "tesla-ble" not in line.lower() and "library" not in line.lower():
                         hits.append(f"{rel}:{i}:{line.strip()}")
                 continue
