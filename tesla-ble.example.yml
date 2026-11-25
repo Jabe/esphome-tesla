@@ -7,6 +7,9 @@ substitutions:
   ble_mac_address: !secret ble_mac_address
   tesla_vin: !secret tesla_vin
   charging_amps_max: "32"
+  # C++ components: pin to the same release tag as the packages below.
+  # Without this they are fetched from main.
+  tesla_ble_component: github://Jabe/esphome-tesla@v1.2.0
   # ota_password: !secret ota_password  # uncomment to enable OTA auth
   # Only needed with connectivity/wifi.yml:
   # wifi_ssid: !secret wifi_ssid
