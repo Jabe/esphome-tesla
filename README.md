@@ -154,7 +154,7 @@ packages:
   network:
     url: https://github.com/Jabe/esphome-tesla
     file: packages/connectivity/ethernet-lan8720.yml
-    ref: v1.3.0
+    ref: v1.3.1
     refresh: 1d
     vars:
       mdc_pin: GPIO23
@@ -163,7 +163,7 @@ packages:
 
 ```yaml
 packages:
-  network: github://Jabe/esphome-tesla/packages/connectivity/wifi.yml@v1.3.0
+  network: github://Jabe/esphome-tesla/packages/connectivity/wifi.yml@v1.3.1
 ```
 
 Do **not** include both. No fork required to switch — change the package line.
@@ -176,9 +176,9 @@ Vehicle control is `features/vehicle.yml`. The HTTP Fleet API mirror is optional
 
 ```yaml
 packages:
-  vehicle: github://Jabe/esphome-tesla/packages/features/vehicle.yml@v1.3.0
+  vehicle: github://Jabe/esphome-tesla/packages/features/vehicle.yml@v1.3.1
   # omit the next line if you only want Home Assistant / BLE entities
-  fleet_api: github://Jabe/esphome-tesla/packages/features/fleet_api.yml@v1.3.0
+  fleet_api: github://Jabe/esphome-tesla/packages/features/fleet_api.yml@v1.3.1
 ```
 
 ## Versions and pinning
@@ -187,13 +187,13 @@ Pin a release tag in **two** places. The packages carry the YAML; the C++ compon
 
 ```yaml
 substitutions:
-  tesla_ble_component: github://Jabe/esphome-tesla@v1.3.0
+  tesla_ble_component: github://Jabe/esphome-tesla@v1.3.1
 
 packages:
   base:
     url: https://github.com/Jabe/esphome-tesla
     file: packages/core/base.yml
-    ref: v1.3.0
+    ref: v1.3.1
     refresh: 1d
   # ... same ref on every other package
 ```
