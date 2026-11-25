@@ -7,6 +7,7 @@
 #include <chrono>
 #include <pb.h>
 #include <inttypes.h>
+#include <esp_random.h>
 #include <mbedtls/ctr_drbg.h>
 #include <mbedtls/ecdh.h>
 #include <mbedtls/entropy.h>
@@ -110,11 +111,10 @@ namespace TeslaBLE
 
   void Peer::generateNonce(pb_byte_t *nonce) const
   {
-    // random 12 bytes using rand()
-    for (int i = 0; i < 12; i++)
-    {
-      nonce[i] = rand() % 256;
-    }
+    // 12 bytes from the hardware RNG. rand() is never seeded here, so it
+    // repeated the same nonces after every boot, and AES-GCM must not reuse
+    // a nonce under one key.
+    esp_fill_random(nonce, 12);
   }
 
   void Peer::setTimeZero(const uint32_t time_zero)

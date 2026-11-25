@@ -11,6 +11,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <esp_random.h>
 #include <iomanip>
 //#include <esphome/core/helpers.h>
 #include <mbedtls/ctr_drbg.h>
@@ -473,7 +474,9 @@ namespace TeslaBLE
       const pb_byte_t *epoch = session->getEpoch();
 
       // Construct AD buffer for encryption
-      static pb_byte_t ad_buffer[56];
+      // 56 bytes were too small: with a 17 character VIN and the flags field the
+      // metadata is about 62 bytes, so every request wrote past the buffer.
+      static pb_byte_t ad_buffer[256];
       size_t ad_buffer_length = 0;
       session->ConstructADBuffer(
           Signatures_SignatureType_SIGNATURE_TYPE_AES_GCM_PERSONALIZED,
@@ -545,10 +548,7 @@ namespace TeslaBLE
       memcpy(universal_message_.payload.protobuf_message_as_bytes.bytes, payload, payload_length);
       universal_message_.payload.protobuf_message_as_bytes.size = payload_length;
     }
-    for (int i = 0; i < sizeof(universal_message_.uuid.bytes); i++)
-    {
-      universal_message_.uuid.bytes[i] = rand() % 256;
-    }
+    esp_fill_random(universal_message_.uuid.bytes, sizeof(universal_message_.uuid.bytes));
     universal_message_.uuid.size = sizeof (universal_message_.uuid.bytes);
     int rc = pb_encode_fields(output_buffer, output_length, UniversalMessage_RoutableMessage_fields, &universal_message_);
     if (rc != 0)
@@ -590,11 +590,8 @@ namespace TeslaBLE
     universal_message_.payload.session_info_request.public_key.size = this->public_key_size_;
 
     // generate unique uuid for the request
-    // random 16 bytes using rand()
-    for (int i = 0; i < sizeof(universal_message_.uuid.bytes); i++)
-    {
-      universal_message_.uuid.bytes[i] = rand() % 256;
-    }
+    // random 16 bytes from the hardware RNG
+    esp_fill_random(universal_message_.uuid.bytes, sizeof(universal_message_.uuid.bytes));
     universal_message_.uuid.size = sizeof (universal_message_.uuid.bytes);
     size_t universal_encode_buffer_size = UniversalMessage_RoutableMessage_size;
     int rc = pb_encode_fields(output_buffer + 2, &universal_encode_buffer_size, UniversalMessage_RoutableMessage_fields, &universal_message_);

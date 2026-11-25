@@ -1,6 +1,6 @@
 # Vendored TeslaBLE sources
 
-These files are copied unchanged from the TeslaBLE library at commit
+These files are copied from the TeslaBLE library at commit
 `969f05f9dfdd5bfb9f3da5ad6b9f5c2265be133b` (version 2026.8.1, 2026-08-25),
 repository `https://github.com/PedroKTFC/tesla-ble`, licensed AGPL-3.0:
 
@@ -10,3 +10,10 @@ repository `https://github.com/PedroKTFC/tesla-ble`, licensed AGPL-3.0:
 They sit flat in this directory because ESPHome only compiles the top level
 of an external component. Nanopb stays an external dependency, declared in
 `__init__.py`.
+
+## Changes against the original
+
+- `peer.cpp`, `client.cpp`: the AES-GCM nonce and the message UUIDs come from
+  `esp_fill_random()` instead of an unseeded `rand()`.
+- `client.cpp`: the metadata buffer for signing infotainment requests is 256
+  bytes instead of 56, which the metadata overran.
