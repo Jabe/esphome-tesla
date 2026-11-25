@@ -1,5 +1,9 @@
 #include <esp_random.h>
 #include <esphome/core/helpers.h>
+// format_hex and friends moved here; ESPHome 2026.11 no longer pulls it in via helpers.h.
+#if __has_include(<esphome/core/alloc_helpers.h>)
+#include <esphome/core/alloc_helpers.h>
+#endif
 #include <esphome/core/log.h>
 #include <nvs_flash.h>
 #include <pb_decode.h>
