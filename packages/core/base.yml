@@ -13,7 +13,7 @@ substitutions:
 esphome:
   project:
     name: Jabe.esphome-tesla
-    version: "1.4.0-beta.1"
+    version: "1.4.0-beta.2"
   name: ${device_name}
   name_add_mac_suffix: false
   friendly_name: ${friendly_name}
