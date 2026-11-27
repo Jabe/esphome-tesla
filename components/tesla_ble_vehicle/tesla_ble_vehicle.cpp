@@ -1074,6 +1074,10 @@ namespace esphome
         ESP_LOGI (TAG, "Reading INFOTAINMENT, previous_asleep_state_=%d, car_just_woken_=%d, car_is_charging_=%d, Unlocked=%d, User=%d, fast_poll_if_unlocked_=%d",
                   previous_asleep_state_, car_just_woken_, car_is_charging_, this->isUnlockedSensor->state, this->isUserPresentSensor->state, fast_poll_if_unlocked_);
         
+        if (!first_infotainment_poll_done_ and this->isAsleepSensor->has_state() and !this->isAsleepSensor->state)
+        { // After a boot, read an awake car right away instead of waiting a full poll period with empty entities
+          do_poll_ = true;
+        }
         //if (car_just_woken_ or OneOffUpdate or car_is_charging_ or this->isUnlockedSensor->state or this->isUserPresentSensor->state)
         if (one_off_update_ or (this->isUnlockedSensor->state and (fast_poll_if_unlocked_ > 0)) or this->isUserPresentSensor->state)
         { // For these fastest poll rate is used
@@ -1113,6 +1117,7 @@ namespace esphome
         if (do_poll_)
         {
           // Start retrieval of data from car. Each data type has its own frequency.
+          first_infotainment_poll_done_ = true;
           last_infotainment_poll_time_ = millis();
           if ((number_updates_since_connection_ % ACTION_SPECIFICS[GET_CHARGE_STATE].numberUpdatesBetweenGets) == 0)
               sendCarServerVehicleActionMessage (GET_CHARGE_STATE, 0);
@@ -1573,6 +1578,36 @@ namespace esphome
       return found;
     }
 
+    void TeslaBLEVehicle::dropPendingCommands (std::initializer_list<const char *> execute_names)
+    /*
+    *   Removes queued commands with one of these names that have not started yet, so a newer request replaces them
+    *   instead of queueing up behind (or in front of) them. A command in progress is left alone.
+    */
+    {
+      size_t count = command_queue_.size();
+      for (size_t i = 0; i < count; i++)
+      {
+        BLECommand moving_command = std::move (command_queue_.front());
+        command_queue_.pop();
+        bool superseded = false;
+        if (moving_command.state == BLECommandState::IDLE)
+        {
+          for (const char *name : execute_names)
+          {
+            superseded = superseded || (moving_command.execute_name == name);
+          }
+        }
+        if (superseded)
+        {
+          ESP_LOGI (TAG, "[%s] Dropping pending command, superseded by a newer request", moving_command.execute_name.c_str());
+        }
+        else
+        {
+          command_queue_.push (std::move (moving_command));
+        }
+      }
+    }
+
     int TeslaBLEVehicle::wakeVehicle()
     {
       ESP_LOGI(TAG, "Waking vehicle");
@@ -1602,6 +1637,8 @@ namespace esphome
     int TeslaBLEVehicle::lockVehicle (VCSEC_RKEAction_E lock)
     {
       ESP_LOGI (TAG, "(Un)locking) vehicle %d", lock);
+      // The latest lock or unlock request wins over any that has not been sent yet
+      dropPendingCommands ({"lock vehicle", "unlock vehicle"});
       // enqueue command
       switch (lock)
       {
@@ -1745,6 +1782,25 @@ namespace esphome
           }
           return 0;
         };
+        /*
+        *   A newer request replaces one of the same kind that has not been sent yet: the latest value wins, and a
+        *   backlog (slow car, retries) can't replay an older value after a newer one. Horn and lights are left out,
+        *   repeated presses are meant to repeat.
+        */
+        switch (action)
+        {
+          case SOUND_HORN:
+          case FLASH_LIGHT:
+            break;
+          case SET_OPEN_CHARGE_PORT_DOOR:
+          case SET_CLOSE_CHARGE_PORT_DOOR:
+            dropPendingCommands ({ACTION_SPECIFICS[SET_OPEN_CHARGE_PORT_DOOR].action_str.c_str(),
+                                  ACTION_SPECIFICS[SET_CLOSE_CHARGE_PORT_DOOR].action_str.c_str()});
+            break;
+          default:
+            dropPendingCommands ({action_str.c_str()});
+            break;
+        }
         ESP_LOGI(TAG, "[%s] Adding command to queue (param=%d)", action_str.c_str(), static_cast<int>(param));
       if (ACTION_SPECIFICS[action].whichMsg == VehicleActionMessage)
       {

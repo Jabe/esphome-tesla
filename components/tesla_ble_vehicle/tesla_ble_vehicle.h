@@ -215,6 +215,7 @@ namespace esphome
             int car_just_woken_ = 0;
             bool previous_asleep_state_ = false;
             bool one_off_update_ = false;
+            bool first_infotainment_poll_done_ = false; // No INFOTAINMENT poll yet since the ESP32 booted
             int car_wake_time_;
             int last_infotainment_poll_time_;
             int esp32_just_started_ = 0;
@@ -265,6 +266,7 @@ namespace esphome
             int lockVehicle (VCSEC_RKEAction_E lock);
             void placeAtFrontOfQueue (UniversalMessage_Domain domain, std::function<int()> execute, std::string execute_name, BLE_CarServer_VehicleAction action = DO_NOTHING);
             bool isCommandQueued (const std::string &execute_name);
+            void dropPendingCommands (std::initializer_list<const char *> execute_names);
 
             int sendVCSECActionMessage(VCSEC_RKEAction_E action);
             int sendVCSECClosureMoveRequestMessage (int moveWhat, VCSEC_ClosureMoveType_E moveType); // Queues it
