@@ -168,7 +168,7 @@ packages:
 
 Do **not** include both. No fork required to switch — change the package line.
 
-The Ethernet package scans for the car continuously from v1.3.0 on (BLE scan window equal to the 150 ms interval), because without Wi‑Fi the radio belongs to BLE alone. If you lower `esp32_ble_tracker.scan_parameters.interval`, set `window` to the same value. Wi‑Fi nodes keep ESPHome's own default.
+The Ethernet package scans for the car continuously from v1.3.0 on (BLE scan window equal to the 150 ms interval), because without Wi‑Fi the radio belongs to BLE alone. From v1.4.0 on it falls back to a 30 ms window while the car is connected (`connection_scan_window`, checked with ESPHome 2026.10.1 and 2026.11.1). If you lower `esp32_ble_tracker.scan_parameters.interval`, set `window` to the same value. Wi‑Fi nodes keep ESPHome's own default.
 
 ### With or without Fleet API
 

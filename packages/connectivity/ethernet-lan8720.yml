@@ -24,3 +24,6 @@ ethernet:
 esp32_ble_tracker:
   scan_parameters:
     window: 150ms
+    # While the car is connected, fall back to a short window so the scan
+    # does not compete with the connection for the one radio.
+    connection_scan_window: 30ms
